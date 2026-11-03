@@ -289,6 +289,7 @@ async function boot() {
       else renderAll();
     },
   });
+  app.startSelected = startJobs;
   wire();
   applyI18n();
   document.body.dataset.ready = '1';

@@ -64,6 +64,7 @@ const VIDEO_CODEC = {
   avi: ['-c:v', 'mpeg4', '-pix_fmt', 'yuv420p'],
   gif: [],
 };
+const VP8 = ['-c:v', 'libvpx', '-pix_fmt', 'yuv420p', '-deadline', 'good', '-cpu-used', '4'];
 const AUDIO_IN_VIDEO = { mp4: 'aac', mov: 'aac', mkv: 'aac', webm: 'libopus', avi: 'libmp3lame' };
 const AUDIO_CODEC = { mp3: 'libmp3lame', ogg: 'libvorbis', opus: 'libopus', m4a: 'aac', flac: 'flac', aiff: 'pcm_s16be' };
 export const VIDEO_TARGETS = Object.keys(VIDEO_CODEC);
@@ -179,7 +180,13 @@ export function buildFfmpeg({ input, output, to, info, opts = {} }) {
   const aArgs = hasAudio
     ? ['-c:a', AUDIO_IN_VIDEO[to], '-b:a', `${audioKbps || 128}k`, ...(to === 'webm' ? ['-ar', '48000'] : []), ...(af.length ? ['-af', af.join(',')] : [])]
     : ['-an'];
-  const vArgs = [...VIDEO_CODEC[to], '-vf', vf.join(',')];
+  // ffmpeg.wasm падает на VP9 - в браузере WebM кодируется VP8
+  const vp8 = o.wasm && to === 'webm';
+  const vArgs = [...(vp8 ? VP8 : VIDEO_CODEC[to]), '-vf', vf.join(',')];
+  if (!sized && vp8) {
+    const q = ['-crf', String(Math.round(50 - (clamp(o.quality ?? 70, 0, 100) / 100) * 40)), '-b:v', '20M'];
+    return { passes: [[...inArgs, ...vArgs, ...q, ...aArgs, ...meta, output]], size, duration, videoKbps: 0, audioKbps };
+  }
   if (!sized) {
     const q = to === 'avi' ? ['-q:v', String(Math.round(31 - (clamp(o.quality ?? 70, 0, 100) / 100) * 29))] : ['-crf', String(crfFor(to, o.quality ?? 70)), ...(to === 'webm' ? ['-b:v', '0'] : [])];
     return { passes: [[...inArgs, ...vArgs, ...q, ...aArgs, ...meta, output]], size, duration, videoKbps: 0, audioKbps };
@@ -210,8 +217,9 @@ export function buildConcat({ inputs, infos, output, to, opts = {} }) {
   infos.forEach((info, i) => { if (info.hasAudio !== false) parts.push(`[${i}:a]aresample=48000,aformat=channel_layouts=stereo[a${i}]`); });
   const chain = infos.map((_, i) => `[v${i}][a${i}]`).join('');
   parts.push(`${chain}concat=n=${infos.length}:v=1:a=1[v][a]`);
-  args.push('-filter_complex', parts.join(';'), '-map', '[v]', '-map', '[a]', ...VIDEO_CODEC[to], '-crf', String(crfFor(to, opts.quality ?? 70)));
-  if (to === 'webm') args.push('-b:v', '0');
+  const vp8 = opts.wasm && to === 'webm';
+  args.push('-filter_complex', parts.join(';'), '-map', '[v]', '-map', '[a]', ...(vp8 ? VP8 : VIDEO_CODEC[to]), '-crf', String(crfFor(to, opts.quality ?? 70)));
+  if (to === 'webm') args.push('-b:v', vp8 ? '20M' : '0');
   args.push('-c:a', AUDIO_IN_VIDEO[to], '-b:a', '128k', output);
   return { passes: [args], size, duration: infos.reduce((s, x) => s + x.duration, 0) };
 }

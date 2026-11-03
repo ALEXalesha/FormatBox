@@ -102,6 +102,9 @@ test('команды ffmpeg: качество, размер в два прохо
   assert.equal(forced.passes.length, 2);
   assert.ok(forced.passes[1].join(' ').includes('-b:v 300k') && forced.passes[1].join(' ').includes('-b:a 48k'));
   assert.equal(crfFor('webm', 0), 52);
+  const vp8 = buildFfmpeg({ input: 'a', output: 'b.webm', to: 'webm', info, opts: { wasm: true, quality: 100 } }).passes[0].join(' ');
+  assert.ok(vp8.includes('-c:v libvpx ') && vp8.includes('-crf 10 -b:v 20M'));
+  assert.ok(buildFfmpeg({ input: 'a', output: 'b.webm', to: 'webm', info, opts: { wasm: true, maxBytes: 1e6 } }).passes[1].join(' ').includes('-c:v libvpx '));
   assert.equal(crfFor('mp4', 100), 16);
 });
 
@@ -110,6 +113,7 @@ test('склейка: размер первого, тишина вместо п�
   const plan = buildConcat({ inputs: ['a.mp4', 'b.mp4'], infos, output: 'o.webm', to: 'webm', opts: {} });
   const t = plan.passes[0].join(' ');
   assert.ok(t.includes('anullsrc') && t.includes('concat=n=2:v=1:a=1') && t.includes('-b:v 0'));
+  assert.ok(buildConcat({ inputs: ['a.mp4', 'b.mp4'], infos, output: 'o.webm', to: 'webm', opts: { wasm: true } }).passes[0].join(' ').includes('libvpx -pix_fmt yuv420p -deadline good -cpu-used 4 -crf'));
   assert.equal(plan.duration, 5);
   assert.deepEqual(plan.size, { width: 1280, height: 720 });
   assert.ok(!buildConcat({ inputs: ['a', 'b'], infos: [infos[0], infos[0]], output: 'o.mp4', to: 'mp4' }).passes[0].join(' ').includes('anullsrc'));

@@ -71,7 +71,7 @@ export async function ffmpegConvert({ bytes, ext, to, opts }, { signal, progress
       probe: () => probeIn(inst, input),
       exec: (args, { duration, onProgress }) => exec(inst, args, { signal, duration, onProgress }),
       outSize: async () => (await inst.readFile(output)).length,
-      input, output, to, opts, passlog: 'fb2pass', nullOutput: '/dev/null',
+      input, output, to, opts: { ...opts, wasm: true }, passlog: 'fb2pass', nullOutput: '/dev/null',
     }, { signal, progress });
     const data = await inst.readFile(output);
     return { bytes: data, info: res.info };
@@ -103,7 +103,7 @@ export async function ffmpegConcat(items, to, opts, { signal, progress, onLoadin
       probeAll: async () => { const list = []; for (const n of inputs) list.push(await probeIn(inst, n)); return list; },
       exec: (args, { duration, onProgress }) => exec(inst, args, { signal, duration, onProgress }),
       outSize: async () => (await inst.readFile(output)).length,
-      inputs, output, to, opts,
+      inputs, output, to, opts: { ...opts, wasm: true },
     }, { signal, progress });
     return { bytes: await inst.readFile(output) };
   } finally {

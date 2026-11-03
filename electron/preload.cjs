@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('formatbox', {
   read: (p) => ipcRenderer.invoke('fb:read', p),
   probe: (p) => ipcRenderer.invoke('fb:probe', p),
   ffmpeg: (job) => ipcRenderer.invoke('fb:ffmpeg', job),
+  ffmpegBytes: (job) => ipcRenderer.invoke('fb:ffmpeg-bytes', job),
+  decode: (job) => ipcRenderer.invoke('fb:decode', job),
   concat: (job) => ipcRenderer.invoke('fb:concat', job),
   office: (job) => ipcRenderer.invoke('fb:office', job),
   cancel: (id) => ipcRenderer.invoke('fb:cancel', id),

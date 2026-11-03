@@ -77,3 +77,33 @@ export async function concatFiles(bin, { inputs, to, opts = {}, outDir }, { sign
     fs.rmSync(work, { recursive: true, force: true });
   }
 }
+
+// Байты из окна (например WAV после «звука приставки») -> файл нужного формата рядом с источником
+export async function convertBytes(bin, { bytes, ext, source, to, opts = {}, outDir, tag = '' }, ctl = {}) {
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'formatbox-in-'));
+  try {
+    const input = path.join(work, `in.${String(ext).replace(/[^a-z0-9]/gi, '')}`);
+    fs.writeFileSync(input, bytes);
+    const out = await convertFile(bin, { input, to, opts, outDir: path.join(work), tag }, ctl);
+    return saveResult(out.path, source, to, outDir, tag);
+  } finally {
+    fs.rmSync(work, { recursive: true, force: true });
+  }
+}
+
+// Звук файла -> WAV (float 32) в памяти: для обработки ядром в окне
+export async function decodeToWav(bin, { input, opts = {} }, { signal } = {}) {
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'formatbox-dec-'));
+  try {
+    const out = path.join(work, 'out.wav');
+    await runMediaJob({
+      probe: () => probe(bin, input),
+      exec: (args, { duration, onProgress }) => runFfmpeg(bin, args, { signal, duration, onProgress, cwd: work }),
+      outSize: () => fs.statSync(out).size,
+      input, output: out, to: 'wav', opts: { ...opts, audio: { bits: 32, float: true, ...(opts.audio || {}) } },
+    }, { signal });
+    return new Uint8Array(fs.readFileSync(out));
+  } finally {
+    fs.rmSync(work, { recursive: true, force: true });
+  }
+}

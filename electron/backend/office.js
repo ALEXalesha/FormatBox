@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { saveResult } from './files.js';
+import { officeRoute } from '../../web/core/docroute.js';
 
 export const LIBREOFFICE_URL = 'https://www.libreoffice.org/download/download-libreoffice/';
 
@@ -33,18 +34,8 @@ export function findPandoc(env = process.env) {
   return null;
 }
 
-// Кто превращает from -> to: soffice берёт офисные форматы, pandoc - markdown, иначе встроенный модуль
-const SOFFICE_IN = ['doc', 'docx', 'odt', 'rtf', 'html', 'txt'];
 const SOFFICE_OUT = { pdf: 'pdf', docx: 'docx:MS Word 2007 XML', odt: 'odt', rtf: 'rtf', html: 'html:XHTML Writer File:UTF8', txt: 'txt:Text (encoded):UTF8' };
-const PANDOC = ['md', 'html', 'docx', 'odt', 'txt', 'rtf'];
-
-export function officeRoute(from, to, { soffice, pandoc }) {
-  if (from === to) return null;
-  if (soffice && SOFFICE_IN.includes(from) && SOFFICE_OUT[to]) return 'soffice';
-  if (pandoc && PANDOC.includes(from) && PANDOC.includes(to) && from !== 'txt') return 'pandoc';
-  if (soffice && from === 'md' && to === 'pdf' && pandoc) return 'pandoc+soffice';
-  return 'builtin';
-}
+export { officeRoute };
 
 function run(bin, args, { signal, cwd } = {}) {
   return new Promise((resolve, reject) => {

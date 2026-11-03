@@ -66,11 +66,14 @@ test('особые случаи: ts, mp3 без ID3, aac, tar, stl, имя ут�
   assert.equal(kindOf('zzz'), 'unknown');
 });
 
-test('закон: цели не содержат сам формат и все цели известны (по всем форматам)', () => {
+test('закон: сам формат - цель только там, где есть смысл (сжать, починить), все цели известны', () => {
   for (const ext of Object.keys(FORMATS)) {
     for (const desktop of [false, true]) {
       const list = targetsFor(ext, { desktop });
-      assert.ok(!list.includes(ext) || ext === 'svg', ext);
+      const kind = FORMATS[ext].kind;
+      if (list.includes(ext)) assert.ok(['video', 'audio', 'image', 'mesh'].includes(kind), ext);
+      if (['doc', 'archive'].includes(kind)) assert.ok(!list.includes(ext), ext);
+      assert.equal(new Set(list).size, list.length, `${ext}: повтор`);
       for (const t of list) assert.ok(FORMATS[t], `${ext} -> ${t}`);
     }
   }

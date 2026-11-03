@@ -4,7 +4,7 @@ import { app, BrowserWindow, ipcMain, dialog, shell, protocol, net, screen } fro
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { findFfmpeg, convertFile, concatFiles, probe } from './backend/ffmpeg.js';
+import { findFfmpeg, convertFile, convertBytes, decodeToWav, concatFiles, probe } from './backend/ffmpeg.js';
 import { findOffice, findPandoc, convertOffice, LIBREOFFICE_URL } from './backend/office.js';
 import { saveBytes } from './backend/files.js';
 import { extractTo } from './backend/extract.js';
@@ -101,6 +101,14 @@ function registerIpc() {
   ipcMain.handle('fb:ffmpeg', (e, { id, input, to, opts, outDir, tag }) => withJob(id, (signal) => {
     if (!tools.ffmpeg) throw new Error('no-ffmpeg');
     return convertFile(tools.ffmpeg.bin, { input, to, opts, outDir, tag }, { signal, progress: progressSender(e, id) });
+  }));
+  ipcMain.handle('fb:ffmpeg-bytes', (e, { id, bytes, ext, source, to, opts, outDir, tag }) => withJob(id, (signal) => {
+    if (!tools.ffmpeg) throw new Error('no-ffmpeg');
+    return convertBytes(tools.ffmpeg.bin, { bytes, ext, source, to, opts, outDir, tag }, { signal, progress: progressSender(e, id) });
+  }));
+  ipcMain.handle('fb:decode', (e, { id, input, opts }) => withJob(id, async (signal) => {
+    if (!tools.ffmpeg) throw new Error('no-ffmpeg');
+    return { bytes: await decodeToWav(tools.ffmpeg.bin, { input, opts }, { signal }) };
   }));
   ipcMain.handle('fb:concat', (e, { id, inputs, to, opts, outDir }) => withJob(id, (signal) => {
     if (!tools.ffmpeg) throw new Error('no-ffmpeg');

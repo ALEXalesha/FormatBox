@@ -22,6 +22,12 @@ function webPlatform() {
       const res = await ffmpegConvert({ bytes, ext: job.ext, to: job.to, opts: job.opts }, ctl);
       return this.save(job, res.bytes, job.to, ctl.tag || '');
     },
+    async ffmpegBytes(job, bytes, ext, ctl) {
+      const { ffmpegConvert } = await import('./ffmpeg-web.js');
+      const opts = { audioKbps: job.opts.audioKbps, quality: job.opts.quality, maxBytes: job.opts.maxBytes, audio: { sampleRate: job.opts.audio?.sampleRate, channels: job.opts.audio?.channels } };
+      const res = await ffmpegConvert({ bytes, ext, to: job.to, opts }, ctl);
+      return this.save(job, res.bytes, job.to, ctl.tag || '');
+    },
     async concat(jobs, to, opts, ctl) {
       const { ffmpegConcat } = await import('./ffmpeg-web.js');
       const items = [];
@@ -98,6 +104,13 @@ function desktopPlatform(fb) {
     async read(job) { return fb.read(job.src.path); },
     async ffmpeg(job, bytes, ctl) {
       return call('ffmpeg', { input: job.src.path, to: job.to, opts: job.opts, outDir, tag: ctl.tag || '' }, ctl);
+    },
+    async ffmpegBytes(job, bytes, ext, ctl) {
+      const opts = { audioKbps: job.opts.audioKbps, quality: job.opts.quality, maxBytes: job.opts.maxBytes, audio: { sampleRate: job.opts.audio?.sampleRate, channels: job.opts.audio?.channels } };
+      return call('ffmpegBytes', { bytes, ext, source: job.src.path, to: job.to, opts, outDir, tag: ctl.tag || '' }, ctl);
+    },
+    async decode(job, opts, ctl) {
+      return (await call('decode', { input: job.src.path, opts }, ctl)).bytes;
     },
     async concat(jobs, to, opts, ctl) {
       return call('concat', { inputs: jobs.map((j) => j.src.path), to, opts, outDir }, ctl);

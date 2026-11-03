@@ -164,17 +164,19 @@ const MESH_OUT = ['stl', 'obj', '3mf', 'ply', 'glb'];
 export function targetsFor(ext, { desktop = false } = {}) {
   const kind = FORMATS[ext]?.kind;
   const without = (list) => list.filter((x) => x !== ext);
+  // тот же формат тоже цель: сжать до N МБ, уменьшить, починить сетку
+  const sameFirst = (list) => (list.includes(ext) ? [ext, ...without(list)] : list);
   switch (kind) {
-    case 'video': return [...without(VIDEO_OUT), ...AUDIO_OUT];
-    case 'audio': return without(AUDIO_OUT);
-    case 'image': return ext === 'svg' ? IMAGE_OUT : without(IMAGE_OUT);
+    case 'video': return [...sameFirst(VIDEO_OUT), ...AUDIO_OUT];
+    case 'audio': return sameFirst(AUDIO_OUT);
+    case 'image': return sameFirst(IMAGE_OUT);
     case 'doc': {
       const builtin = ['pdf', 'docx', 'odt', 'md', 'html', 'txt'];
       if (!builtin.includes(ext) && !desktop) return [];
       return without(desktop ? [...DOC_OUT, 'rtf'] : DOC_OUT);
     }
     case 'archive': return without(ARCHIVE_OUT);
-    case 'mesh': return without(MESH_OUT);
+    case 'mesh': return sameFirst(MESH_OUT);
     default: return [];
   }
 }

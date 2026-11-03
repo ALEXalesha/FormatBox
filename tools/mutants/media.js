@@ -9,7 +9,7 @@ export default [
   { name: 'media: 8-bit wav as signed 16', file: 'web/core/media.js', from: "if (bits === 8) return 'pcm_u8';", to: '', test: 'tests/core/media.test.js' },
   { name: 'media: real ffmpeg - no retry when oversize', file: 'web/core/media.js', from: 'const k = (maxBytes / bytes) * 0.95;', to: 'const k = 1;', test: 'tests/core/media.test.js' },
   { name: 'formats: zip family not refined', file: 'web/core/formats.js', from: "if (head.includes('word/')) return 'docx';", to: '', test: 'tests/core/formats.test.js' },
-  { name: 'formats: target list contains the source', file: 'web/core/formats.js', from: 'const without = (list) => list.filter((x) => x !== ext);', to: 'const without = (list) => list;', test: 'tests/core/formats.test.js' },
+  { name: 'formats: archive repacked into itself', file: 'web/core/formats.js', from: "case 'archive': return without(ARCHIVE_OUT);", to: "case 'archive': return ARCHIVE_OUT;", test: 'tests/core/formats.test.js' },
   { name: 'presets: preset changes the shared table', file: 'web/core/presets.js', from: '...structuredClone(p.opts)', to: '...p.opts', test: 'tests/core/formats.test.js' },
   { name: 'files: existing file overwritten', file: 'electron/backend/files.js', from: "fs.writeFileSync(dest, bytes, { flag: 'wx' });", to: 'fs.writeFileSync(dest, bytes);', test: 'tests/core/files.test.js' },
   { name: 'files: race - taken name not retried', file: 'electron/backend/files.js', from: 'if (write(dest)) return { path: dest, name };', to: 'write(dest); return { path: dest, name };', test: 'tests/core/files.test.js' },
