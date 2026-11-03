@@ -1,4 +1,5 @@
 export default [
+  { name: 'xml: entities not decoded in attributes', file: 'web/core/xml.js', from: 'node.attrs[m[1]] = unescapeXml(m[3] ?? m[4]);', to: 'node.attrs[m[1]] = m[3] ?? m[4];', test: 'tests/core/xml.test.js' },
   { name: 'names: existing file overwritten', file: 'web/core/names.js', from: 'for (let i = 2; low.has(name.toLowerCase()); i++)', to: 'for (let i = 2; false; i++)', test: 'tests/core/names.test.js' },
   { name: 'names: case ignored on check', file: 'web/core/names.js', from: 'new Set([...taken].map((n) => n.toLowerCase()))', to: 'new Set(taken)', test: 'tests/core/names.test.js' },
   { name: 'queue: no limit on running jobs', file: 'web/core/queue.js', from: 'while (active < concurrency)', to: 'while (true)', test: 'tests/core/queue.test.js' },
