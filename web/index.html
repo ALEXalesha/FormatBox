@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FormatBox</title>
+<meta name="description" content="FormatBox: video, audio, images, documents, archives and 3D in one converter, offline in the browser">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="themes.css">
+<link rel="stylesheet" href="app.css">
+<script src="coi-sw.js"></script>
+<script>
+  // тема до первой отрисовки, чтобы не мигало
+  try { const th = localStorage.getItem('fb.theme'); if (th && th !== 'glass') document.documentElement.dataset.theme = th; } catch (e) { /* storage off */ }
+</script>
+</head>
+<body>
+<header class="top glass">
+  <div class="brand"><img src="icon.svg" alt="" width="28" height="28"><b>FormatBox</b></div>
+  <button id="addFiles" class="primary" data-i18n="add"></button>
+  <input id="fileInput" type="file" multiple hidden>
+  <div class="menu">
+    <button id="toolsBtn" data-i18n="tools" aria-haspopup="true"></button>
+    <div id="toolsMenu" class="popup glass" hidden>
+      <button id="toolText3d" data-i18n="tool.text3d"></button>
+      <button id="toolJoin" data-i18n="tool.join"></button>
+    </div>
+  </div>
+  <span class="grow"></span>
+  <select id="themeSel" data-i18n-title="theme"></select>
+  <select id="langSel" data-i18n-title="lang">
+    <option value="ru">Русский</option>
+    <option value="en">English</option>
+  </select>
+</header>
+
+<section id="drop" class="drop glass" tabindex="0"><span data-i18n="drop"></span></section>
+
+<section id="presetsBar" class="presets" hidden>
+  <span class="label" data-i18n="presets"></span>
+  <div id="presets" class="chips"></div>
+</section>
+
+<main class="work">
+  <section class="queue glass">
+    <h2 data-i18n="queue"></h2>
+    <ul id="queue"></ul>
+    <p id="queueEmpty" class="dim" data-i18n="queue.empty"></p>
+  </section>
+  <section id="panel" class="panel glass">
+    <p id="panelNone" class="dim" data-i18n="panel.none"></p>
+    <div id="panelBody" hidden></div>
+  </section>
+</main>
+
+<footer class="bottom glass">
+  <span id="outInfo" class="dim"></span>
+  <button id="outPick" data-i18n="out.pick" hidden></button>
+  <button id="outReset" data-i18n="out.reset" hidden></button>
+  <span class="grow"></span>
+  <button id="clearDone" data-i18n="clearDone"></button>
+  <button id="cancelAll" data-i18n="cancelAll"></button>
+  <button id="startAll" class="primary" data-i18n="startAll"></button>
+</footer>
+
+<dialog id="text3dDlg" class="glass">
+  <form method="dialog">
+    <h3 data-i18n="text3d.title"></h3>
+    <label><span data-i18n="text3d.text"></span> <input id="text3dText" value="FormatBox"></label>
+    <label><span data-i18n="opt.heightMm"></span> <input id="text3dHeight" type="number" value="10" min="2" max="200"></label>
+    <div class="row"><button value="cancel" data-i18n="cancel"></button><button id="text3dMake" value="ok" class="primary" data-i18n="text3d.make"></button></div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast glass" hidden></div>
+<script type="module" src="app/main.js"></script>
+</body>
+</html>

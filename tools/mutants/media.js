@@ -13,4 +13,6 @@ export default [
   { name: 'presets: preset changes the shared table', file: 'web/core/presets.js', from: '...structuredClone(p.opts)', to: '...p.opts', test: 'tests/core/formats.test.js' },
   { name: 'files: existing file overwritten', file: 'electron/backend/files.js', from: "fs.writeFileSync(dest, bytes, { flag: 'wx' });", to: 'fs.writeFileSync(dest, bytes);', test: 'tests/core/files.test.js' },
   { name: 'files: race - taken name not retried', file: 'electron/backend/files.js', from: 'if (write(dest)) return { path: dest, name };', to: 'write(dest); return { path: dest, name };', test: 'tests/core/files.test.js' },
+  { name: 'ffjob: retry uses the first plan again', file: 'web/core/ffjob.js', from: 'runPlan(attempt === 0 ? first : make(', to: 'runPlan(attempt >= 0 ? first : make(', test: 'tests/core/ffjob.test.js' },
+  { name: 'ffjob: size ignored', file: 'web/core/ffjob.js', from: 'if (!opts.maxBytes) {', to: 'if (true) {', test: 'tests/core/ffjob.test.js' },
 ];

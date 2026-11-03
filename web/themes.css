@@ -1,0 +1,157 @@
+/*
+  Темы - те же пять, что в Paint Pro (Вид -> Тема), с теми же значениями: Стекло (по умолчанию, без
+  атрибута), Строгая, Светлая, Ночная, Тёплая. Тема - атрибут data-theme на <html>.
+  Сверх токенов Paint: --ink (R G B стеклянных слоёв), --accent-rgb, --on-accent.
+*/
+
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-bg-strong: rgba(255, 255, 255, 0.14);
+  --glass-bg-soft: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-border-strong: rgba(255, 255, 255, 0.32);
+  --glass-highlight: rgba(255, 255, 255, 0.45);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+  --blur: blur(28px) saturate(190%);
+  --glass-sat: 190%;
+  --blur-strong: blur(40px) saturate(220%);
+  --text: #f4f4f8;
+  --text-dim: rgba(244, 244, 248, 0.62);
+  --accent: #5b8def;
+  --accent-2: #9d5bef;
+  --accent-grad: linear-gradient(135deg, #5b8def 0%, #9d5bef 100%);
+  --accent-glow: 0 0 24px rgba(91, 141, 239, 0.55);
+  --danger: #ff5b5b;
+  --success: #2dd4a8;
+  --app-base: #12101f;
+  --app-bg:
+    radial-gradient(80% 60% at 12% -10%, rgba(120, 90, 255, 0.55), transparent 60%),
+    radial-gradient(65% 50% at 95% 8%, rgba(255, 100, 180, 0.40), transparent 55%),
+    radial-gradient(60% 70% at 85% 110%, rgba(60, 200, 255, 0.40), transparent 60%),
+    radial-gradient(50% 50% at 5% 105%, rgba(100, 255, 180, 0.30), transparent 60%),
+    linear-gradient(135deg, #0e0c1a 0%, #1a1330 50%, #0c1024 100%);
+
+  --ink: 255 255 255;
+  --accent-rgb: 91 141 239;
+  --on-accent: #ffffff;
+}
+
+/* «Строгая»: без цветных пятен, приглушённый синий, ровный тёмный фон. */
+:root[data-theme="formal"] {
+  --danger: #ff5b5b;
+  --success: #2dd4a8;
+  --glass-bg: rgba(255, 255, 255, 0.055);
+  --glass-bg-strong: rgba(255, 255, 255, 0.10);
+  --glass-bg-soft: rgba(255, 255, 255, 0.035);
+  --glass-border: rgba(255, 255, 255, 0.11);
+  --glass-border-strong: rgba(255, 255, 255, 0.20);
+  --glass-highlight: rgba(255, 255, 255, 0.22);
+  --glass-shadow: 0 6px 20px rgba(0, 0, 0, 0.32);
+  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --blur: blur(20px) saturate(120%);
+  --glass-sat: 120%;
+  --blur-strong: blur(28px) saturate(130%);
+  --text: #e6e8ec;
+  --text-dim: rgba(230, 232, 236, 0.55);
+  --accent: #4a7ab8;
+  --accent-2: #5c7fa6;
+  --accent-grad: linear-gradient(135deg, #4a7ab8 0%, #5c7fa6 100%);
+  --accent-glow: 0 0 12px rgba(74, 122, 184, 0.30);
+  --app-base: #1f242e;
+  --app-bg: linear-gradient(160deg, #1b1f27 0%, #232833 55%, #191d25 100%);
+
+  --ink: 255 255 255;
+  --accent-rgb: 74 122 184;
+  --on-accent: #ffffff;
+}
+
+/* «Светлая»: тёмный текст на светлом, стекло становится тёмным с малой прозрачностью. */
+:root[data-theme="light"] {
+  --danger: #ff5b5b;
+  --success: #2dd4a8;
+  --glass-bg: rgba(22, 26, 38, 0.045);
+  --glass-bg-strong: rgba(22, 26, 38, 0.10);
+  --glass-bg-soft: rgba(22, 26, 38, 0.03);
+  --glass-border: rgba(22, 26, 38, 0.14);
+  --glass-border-strong: rgba(22, 26, 38, 0.26);
+  --glass-highlight: rgba(255, 255, 255, 0.85);
+  --glass-shadow: 0 6px 20px rgba(30, 40, 70, 0.14);
+  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  --blur: blur(18px) saturate(130%);
+  --glass-sat: 130%;
+  --blur-strong: blur(26px) saturate(140%);
+  --text: #1b2030;
+  --text-dim: rgba(27, 32, 48, 0.58);
+  --accent: #3a6fd8;
+  --accent-2: #7a52d0;
+  --accent-grad: linear-gradient(135deg, #3a6fd8 0%, #7a52d0 100%);
+  --accent-glow: 0 0 14px rgba(58, 111, 216, 0.28);
+  --app-base: #e8ecf3;
+  --app-bg: linear-gradient(160deg, #eff2f7 0%, #e3e8f0 55%, #dde3ed 100%);
+
+  --ink: 22 26 38;
+  --accent-rgb: 58 111 216;
+  --on-accent: #ffffff;
+}
+
+/* «Ночная»: почти чёрный фон для тёмной комнаты, всё приглушено. */
+:root[data-theme="night"] {
+  --danger: #ff5b5b;
+  --success: #2dd4a8;
+  --glass-bg: rgba(255, 255, 255, 0.045);
+  --glass-bg-strong: rgba(255, 255, 255, 0.085);
+  --glass-bg-soft: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-border-strong: rgba(255, 255, 255, 0.17);
+  --glass-highlight: rgba(255, 255, 255, 0.18);
+  --glass-shadow: 0 6px 22px rgba(0, 0, 0, 0.55);
+  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  --blur: blur(18px) saturate(110%);
+  --glass-sat: 110%;
+  --blur-strong: blur(26px) saturate(120%);
+  --text: #dcdde3;
+  --text-dim: rgba(220, 221, 227, 0.48);
+  --accent: #4668a8;
+  --accent-2: #6a5aa0;
+  --accent-grad: linear-gradient(135deg, #4668a8 0%, #6a5aa0 100%);
+  --accent-glow: 0 0 10px rgba(70, 104, 168, 0.28);
+  --app-base: #08090e;
+  --app-bg: linear-gradient(160deg, #06070b 0%, #0b0d13 55%, #05060a 100%);
+
+  --ink: 255 255 255;
+  --accent-rgb: 70 104 168;
+  --on-accent: #ffffff;
+}
+
+/* «Тёплая»: тёмная, но не синяя - охра и кофе. */
+:root[data-theme="warm"] {
+  --danger: #ff5b5b;
+  --success: #2dd4a8;
+  --glass-bg: rgba(255, 236, 210, 0.07);
+  --glass-bg-strong: rgba(255, 236, 210, 0.13);
+  --glass-bg-soft: rgba(255, 236, 210, 0.045);
+  --glass-border: rgba(255, 226, 190, 0.16);
+  --glass-border-strong: rgba(255, 226, 190, 0.28);
+  --glass-highlight: rgba(255, 240, 215, 0.35);
+  --glass-shadow: 0 8px 26px rgba(30, 16, 6, 0.45);
+  --glass-inset: inset 0 1px 0 rgba(255, 240, 215, 0.25);
+  --blur: blur(22px) saturate(150%);
+  --glass-sat: 150%;
+  --blur-strong: blur(32px) saturate(170%);
+  --text: #f5ead9;
+  --text-dim: rgba(245, 234, 217, 0.58);
+  --accent: #d08a3c;
+  --accent-2: #b4562f;
+  --accent-grad: linear-gradient(135deg, #d08a3c 0%, #b4562f 100%);
+  --accent-glow: 0 0 18px rgba(208, 138, 60, 0.40);
+  --app-base: #1d1610;
+  --app-bg:
+    radial-gradient(65% 55% at 10% -8%, rgba(190, 110, 40, 0.35), transparent 60%),
+    radial-gradient(58% 50% at 96% 10%, rgba(150, 60, 40, 0.28), transparent 58%),
+    linear-gradient(150deg, #17110b 0%, #241a10 55%, #140f0a 100%);
+
+  --ink: 255 236 210;
+  --accent-rgb: 208 138 60;
+  --on-accent: #ffffff;
+}
