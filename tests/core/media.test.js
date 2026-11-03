@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rng } from '../../web/core/rand.js';
-import { outputSize, outputDuration, bitrateForSize, pixelsForBitrate, buildFfmpeg, buildConcat, fitToSize, parseProbe, parseProgress, atempoChain, crfFor } from '../../web/core/media.js';
+import { cropFromPercent, outputSize, outputDuration, bitrateForSize, pixelsForBitrate, buildFfmpeg, buildConcat, fitToSize, parseProbe, parseProgress, atempoChain, crfFor } from '../../web/core/media.js';
 
 const randomInfo = (r) => ({ width: r.int(16, 4000), height: r.int(16, 3000), duration: r.int(1, 7200) / 10, fps: r.pick([24, 25, 30, 60]), hasAudio: r() < 0.8, hasVideo: true });
 
@@ -145,4 +145,18 @@ test('разбор вывода ffmpeg', () => {
   assert.equal(parseProgress('time=00:10:00.00', 62.5), 1);
   assert.equal(parseProgress('no', 10), null);
   assert.equal(parseProgress('time=00:00:01.00', 0), null);
+});
+
+test('закон: обрезка краёв в процентах - прямоугольник внутри кадра, стороны чётные (зерно 15)', () => {
+  const r = rng(15);
+  for (let n = 0; n < 2000; n++) {
+    const info = { width: r.int(2, 4000), height: r.int(2, 3000) };
+    const pct = { left: r.int(0, 60), right: r.int(0, 60), top: r.int(-5, 60), bottom: r.int(0, 120) };
+    const c = cropFromPercent(info, pct);
+    assert.ok(c.x >= 0 && c.y >= 0 && c.x + c.w <= info.width + 1 && c.y + c.h <= info.height + 1, JSON.stringify({ info, c }));
+    assert.equal(c.w % 2, 0); assert.equal(c.h % 2, 0);
+  }
+  const plan = buildFfmpeg({ input: 'a', output: 'b.mp4', to: 'mp4', info: { width: 1000, height: 500, duration: 2, hasAudio: false }, opts: { cropPct: { left: 10, right: 10 } } });
+  assert.ok(plan.passes[0].join(' ').includes('crop=800:500:100:0'));
+  assert.ok(!buildFfmpeg({ input: 'a', output: 'b.mp4', to: 'mp4', info: { width: 1000, height: 500, duration: 2 }, opts: { cropPct: {} } }).passes[0].join(' ').includes('crop='));
 });

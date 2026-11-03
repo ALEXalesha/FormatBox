@@ -24,6 +24,16 @@ export function outputSize(info, opts = {}) {
   return { width: even(w), height: even(h) };
 }
 
+// Обрезка краёв в процентах -> прямоугольник в пикселях (чётные стороны, не меньше 2)
+export function cropFromPercent(info, pct = {}) {
+  const side = (v) => Math.min(95, Math.max(0, v || 0)) / 100;
+  const x = Math.floor((info.width * side(pct.left)) / 2) * 2;
+  const y = Math.floor((info.height * side(pct.top)) / 2) * 2;
+  const w = even(info.width * (1 - side(pct.left) - side(pct.right)));
+  const h = even(info.height * (1 - side(pct.top) - side(pct.bottom)));
+  return { x, y, w: Math.min(w, info.width - x), h: Math.min(h, info.height - y) };
+}
+
 // Сколько секунд будет в результате
 export function outputDuration(info, opts = {}) {
   const start = clamp(opts.trim?.start || 0, 0, info.duration);
@@ -126,6 +136,10 @@ export function videoFilters(info, o, size) {
 // Возвращает { passes: [[args]], size, duration, videoKbps, audioKbps }
 export function buildFfmpeg({ input, output, to, info, opts = {} }) {
   const o = { ...opts };
+  if (o.cropPct && !o.crop && info.width) {
+    const c = cropFromPercent(info, o.cropPct);
+    if (c.w < info.width || c.h < info.height) o.crop = c;
+  }
   const isAudioOut = AUDIO_TARGETS.includes(to);
   const hasVideo = info.hasVideo !== false && !isAudioOut;
   const hasAudio = info.hasAudio !== false && !o.mute && to !== 'gif';

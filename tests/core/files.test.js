@@ -58,3 +58,25 @@ test('закон гонки: имя заняли между чтением па�
     assert.throws(() => saveResult(path.join(dir, 'missing'), path.join(dir, 'a.png'), 'gif', dir), /ENOENT/);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('закон: распаковка - новая папка, ничего снаружи не тронуто, пути за папку отброшены (зерно 42)', async () => {
+  const { extractTo } = await import('../../electron/backend/extract.js');
+  const r = rng(42);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fb-ext-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'arch.tar.gz'), 'archive');
+    fs.mkdirSync(path.join(dir, 'arch'));
+    fs.writeFileSync(path.join(dir, 'arch', 'keep.txt'), 'old');
+    for (let n = 0; n < 5; n++) {
+      const entries = [{ path: 'evil/../../escape.txt', data: new Uint8Array([1]) }, { path: 'sub', dir: true }];
+      for (let k = r.int(1, 5); k > 0; k--) entries.push({ path: `sub/f${k}.bin`, data: r.bytes(r.int(0, 50)), mtime: Date.UTC(2020, 1, 2) });
+      const res = extractTo(entries, path.join(dir, 'arch.tar.gz'));
+      assert.match(res.name, /^arch \(\d+\)$/);
+      assert.equal(fs.readFileSync(path.join(dir, 'arch', 'keep.txt'), 'utf8'), 'old');
+      assert.ok(!fs.existsSync(path.join(dir, 'escape.txt')));
+      assert.equal(res.files, entries.length - 2 + (fs.existsSync(path.join(res.path, 'escape.txt')) ? 1 : 0));
+    }
+    const plain = extractTo([{ path: 'a.txt', data: new Uint8Array([65]) }], path.join(dir, 'x.zip'), dir);
+    assert.equal(plain.name, 'x');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
