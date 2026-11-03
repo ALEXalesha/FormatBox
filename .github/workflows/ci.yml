@@ -1,0 +1,27 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: ffmpeg, LibreOffice and pandoc for the desktop backend
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg pandoc libreoffice-writer-nogui xvfb
+      - run: npm ci
+      - run: node tools/vendor.js
+      - name: Laws and branch coverage (core >= 90 %, all non-window code >= 80 %)
+        run: npm run cover && node tools/check-coverage.js
+      - name: Mutants
+        run: node tools/mutate.js
+      - run: npx playwright install --with-deps chromium
+      - name: Window tests (web)
+        run: npm run test:web
+      - name: Window tests (Electron, invisible)
+        run: xvfb-run -a npm run test:app
