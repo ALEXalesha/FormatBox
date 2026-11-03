@@ -1,0 +1,16 @@
+export default [
+  { name: 'media: max pixels ignored', file: 'web/core/media.js', from: 'if (opts.maxPixels && w * h > opts.maxPixels) {', to: 'if (false) {', test: 'tests/core/media.test.js' },
+  { name: 'media: odd sides after rounding', file: 'web/core/media.js', from: 'const even = (v) => Math.max(2, Math.floor(v / 2) * 2);', to: 'const even = (v) => Math.max(2, Math.round(v));', test: 'tests/core/media.test.js' },
+  { name: 'media: rotation does not swap sides', file: 'web/core/media.js', from: 'if (opts.rotate === 90 || opts.rotate === 270) [w, h] = [h, w];', to: '', test: 'tests/core/media.test.js' },
+  { name: 'media: no container reserve in bitrate', file: 'web/core/media.js', from: 'Math.max(0, (maxBytes - 16 * 1024) * 0.97)', to: 'Math.max(0, maxBytes * 1.05)', test: 'tests/core/media.test.js' },
+  { name: 'media: fit loop accepts an oversize file', file: 'web/core/media.js', from: 'if (bytes <= maxBytes) { best', to: 'if (bytes <= maxBytes * 1.2) { best', test: 'tests/core/media.test.js' },
+  { name: 'media: atempo step above 2', file: 'web/core/media.js', from: 'while (left > 2) { steps.push(2); left /= 2; }', to: 'while (left > 4) { steps.push(2); left /= 2; }', test: 'tests/core/media.test.js' },
+  { name: 'media: speed ignored in duration', file: 'web/core/media.js', from: 'return (end - start) / (opts.speed || 1);', to: 'return end - start;', test: 'tests/core/media.test.js' },
+  { name: 'media: 8-bit wav as signed 16', file: 'web/core/media.js', from: "if (bits === 8) return 'pcm_u8';", to: '', test: 'tests/core/media.test.js' },
+  { name: 'media: real ffmpeg - no retry when oversize', file: 'web/core/media.js', from: 'const k = (maxBytes / bytes) * 0.95;', to: 'const k = 1;', test: 'tests/core/media.test.js' },
+  { name: 'formats: zip family not refined', file: 'web/core/formats.js', from: "if (head.includes('word/')) return 'docx';", to: '', test: 'tests/core/formats.test.js' },
+  { name: 'formats: target list contains the source', file: 'web/core/formats.js', from: 'const without = (list) => list.filter((x) => x !== ext);', to: 'const without = (list) => list;', test: 'tests/core/formats.test.js' },
+  { name: 'presets: preset changes the shared table', file: 'web/core/presets.js', from: '...structuredClone(p.opts)', to: '...p.opts', test: 'tests/core/formats.test.js' },
+  { name: 'files: existing file overwritten', file: 'electron/backend/files.js', from: "fs.writeFileSync(dest, bytes, { flag: 'wx' });", to: 'fs.writeFileSync(dest, bytes);', test: 'tests/core/files.test.js' },
+  { name: 'files: race - taken name not retried', file: 'electron/backend/files.js', from: 'if (write(dest)) return { path: dest, name };', to: 'write(dest); return { path: dest, name };', test: 'tests/core/files.test.js' },
+];
