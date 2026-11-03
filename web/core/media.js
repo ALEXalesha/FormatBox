@@ -37,7 +37,7 @@ export function bitrateForSize({ maxBytes, duration, hasVideo = true, hasAudio =
   if (!hasVideo) return { videoKbps: 0, audioKbps: Math.floor(clamp(budget, 6, 320)), totalKbps: budget };
   let audio = hasAudio ? Math.min(audioKbps, Math.max(24, Math.floor(budget * 0.15))) : 0;
   let video = budget - audio;
-  if (video < 30 && hasAudio) { audio = Math.max(16, Math.floor(budget * 0.25)); video = budget - audio; }
+  if (video < 30 && hasAudio) { audio = Math.max(6, Math.floor(budget * 0.25)); video = budget - audio; }
   return { videoKbps: Math.max(1, Math.floor(video)), audioKbps: audio, totalKbps: budget };
 }
 
@@ -212,8 +212,9 @@ export async function fitToSize({ maxBytes, first, encode, tries = 4, signal }) 
     const bytes = await encode(videoKbps, audioKbps, i);
     if (bytes <= maxBytes) { best = { bytes, videoKbps, audioKbps, tries: i + 1 }; break; }
     const k = (maxBytes / bytes) * 0.95;
+    // уменьшаем оба потока: если картинка уже на пределе, лишнее съедает звук
     if (videoKbps > 0) videoKbps = Math.max(1, Math.floor(videoKbps * k));
-    else audioKbps = Math.max(6, Math.floor(audioKbps * k));
+    if (audioKbps > 0) audioKbps = Math.max(6, Math.floor(audioKbps * k));
     if (videoKbps <= 1 && audioKbps <= 6 && i > 0) break;
   }
   if (!best) throw new Error('size-unreachable');
