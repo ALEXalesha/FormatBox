@@ -34,7 +34,15 @@ export async function runMediaJob({ probe, exec, outSize, input, output, to, opt
 export async function runConcatJob({ probeAll, exec, outSize, inputs, output, to, opts = {} }, { signal, progress = () => {} } = {}) {
   const infos = await probeAll();
   const plan = buildConcat({ inputs, infos, output, to, opts });
-  if (signal?.aborted) throw new Error('canceled');
-  await exec(plan.passes[0], { duration: plan.duration, onProgress: progress });
-  return { bytes: await outSize(), infos, plan };
+  const run = async (p) => {
+    if (signal?.aborted) throw new Error('canceled');
+    await exec(p.passes[0], { duration: p.duration, onProgress: progress });
+    return outSize();
+  };
+  if (!opts.maxBytes) return { bytes: await run(plan), infos, plan };
+  const fit = await fitToSize({
+    maxBytes: opts.maxBytes, first: plan, signal,
+    encode: (videoKbps, audioKbps, attempt) => run(attempt === 0 ? plan : buildConcat({ inputs, infos, output, to, opts: { ...opts, forceVideoKbps: videoKbps, audioKbps } })),
+  });
+  return { bytes: fit.bytes, infos, plan };
 }

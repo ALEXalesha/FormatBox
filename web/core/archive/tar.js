@@ -141,6 +141,8 @@ export function readTar(b, { signal } = {}) {
     const type = String.fromCharCode(h[156] || 48);
     let size = readNumber(h, 124, 12);
     if (pax.size !== undefined) size = Number(pax.size);
+    // отрицательный или дробный размер вёл указатель назад - вечный цикл на злонамеренном архиве
+    if (!Number.isSafeInteger(size) || size < 0) throw new Error('tar: bad entry size');
     const start = off + BLOCK;
     const data = b.subarray(start, start + size);
     off = start + Math.ceil(size / BLOCK) * BLOCK;

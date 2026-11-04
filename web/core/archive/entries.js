@@ -48,12 +48,13 @@ export function normalizeEntries(entries) {
   for (const p of [...dirs.keys(), ...files.map((f) => f.path)]) {
     for (let k = p.indexOf('/'); k > 0; k = p.indexOf('/', k + 1)) parents.set(p.slice(0, k), true);
   }
-  const taken = new Set([...dirs.keys(), ...parents.keys()]);
+  // без учёта регистра: на Windows и macOS A.txt и a.txt - один файл, вторая запись обрывала распаковку
+  const taken = new Set([...dirs.keys(), ...parents.keys()].map((p) => p.toLowerCase()));
   const out = [];
   for (const f of files) {
     let path = f.path;
-    for (let n = 2; taken.has(path); n++) path = withSuffix(f.path, n);
-    taken.add(path);
+    for (let n = 2; taken.has(path.toLowerCase()); n++) path = withSuffix(f.path, n);
+    taken.add(path.toLowerCase());
     out.push({ path, data: f.data, mtime: f.mtime, dir: false });
   }
   for (const p of parents.keys()) {

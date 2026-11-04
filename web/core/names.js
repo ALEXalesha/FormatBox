@@ -33,3 +33,11 @@ export function outputName(source, ext, taken, tag = '') {
   const wanted = `${stem}${mark ? `-${mark}` : ''}${ext ? `.${ext}` : ''}`;
   return uniqueName(wanted, taken);
 }
+
+// Папка для распаковки архива: имя архива без расширения (и без .tar.gz), не занятое в папке
+export function archiveFolderName(archive, taken) {
+  const low = String(archive).toLowerCase();
+  const two = ['.tar.gz', '.tar.xz', '.tar.bz2'].find((x) => low.endsWith(x));
+  const stem = two ? archive.slice(0, -two.length) : splitName(archive).stem;
+  return uniqueName(stem, taken);
+}

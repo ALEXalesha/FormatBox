@@ -92,17 +92,24 @@ function pcmCodec(bits, float, big = false) {
   return `pcm_s${bits}${big ? 'be' : 'le'}`;
 }
 
+// Качество 0..100 -> кбит/с для кодеков без шкалы качества (Opus, AAC)
+export const kbpsForQuality = (q) => Math.round(32 + (clamp(q, 0, 100) / 100) * 224);
+
 function audioArgs(to, o) {
   const a = o.audio || {};
   const out = [];
+  const pcm = ['wav', 'aiff', 'flac'].includes(to);
   if (to === 'wav' || to === 'aiff') out.push('-c:a', pcmCodec(a.bits || 16, a.float, to === 'aiff'));
   else if (to === 'flac') out.push('-c:a', 'flac', '-sample_fmt', (a.bits || 16) > 16 ? 's32' : 's16', ...((a.bits || 16) === 24 ? ['-bits_per_raw_sample', '24'] : []));
-  else out.push('-c:a', AUDIO_CODEC[to]);
-  if (o.audioKbps && !['wav', 'aiff', 'flac'].includes(to)) out.push('-b:a', `${o.audioKbps}k`);
-  else if (!['wav', 'aiff', 'flac'].includes(to) && to !== 'opus' && o.quality != null && to !== 'm4a') {
-    out.push('-q:a', String(to === 'mp3' ? Math.round(9 - (o.quality / 100) * 9) : Math.round((o.quality / 100) * 10)));
+  // видео-контейнер без картинки (mp4 только со звуком): кодек звука этого контейнера
+  else out.push('-c:a', AUDIO_CODEC[to] || AUDIO_IN_VIDEO[to] || 'aac');
+  if (o.audioKbps && !pcm) out.push('-b:a', `${o.audioKbps}k`);
+  else if (!pcm && o.quality != null) {
+    if (to === 'mp3') out.push('-q:a', String(Math.round(9 - (o.quality / 100) * 9)));
+    else if (to === 'ogg') out.push('-q:a', String(Math.round((o.quality / 100) * 10)));
+    else out.push('-b:a', `${kbpsForQuality(o.quality)}k`);
   }
-  const rate = to === 'opus' ? 48000 : a.sampleRate;
+  const rate = to === 'opus' || to === 'webm' ? 48000 : a.sampleRate;
   if (rate) out.push('-ar', String(rate));
   if (a.channels) out.push('-ac', String(a.channels));
   return out;
@@ -218,10 +225,18 @@ export function buildConcat({ inputs, infos, output, to, opts = {} }) {
   const chain = infos.map((_, i) => `[v${i}][a${i}]`).join('');
   parts.push(`${chain}concat=n=${infos.length}:v=1:a=1[v][a]`);
   const vp8 = opts.wasm && to === 'webm';
-  args.push('-filter_complex', parts.join(';'), '-map', '[v]', '-map', '[a]', ...(vp8 ? VP8 : VIDEO_CODEC[to]), '-crf', String(crfFor(to, opts.quality ?? 70)));
-  if (to === 'webm') args.push('-b:v', vp8 ? '20M' : '0');
-  args.push('-c:a', AUDIO_IN_VIDEO[to], '-b:a', '128k', output);
-  return { passes: [args], size, duration: infos.reduce((s, x) => s + x.duration, 0) };
+  const duration = infos.reduce((s, x) => s + x.duration, 0);
+  args.push('-filter_complex', parts.join(';'), '-map', '[v]', '-map', '[a]', ...(vp8 ? VP8 : VIDEO_CODEC[to]));
+  // до N МБ: битрейт от общей длительности (один проход, подгонку повторами делает runConcatJob)
+  let videoKbps = opts.forceVideoKbps || 0, audioKbps = opts.audioKbps || 128;
+  if (opts.maxBytes && !videoKbps) ({ videoKbps, audioKbps } = bitrateForSize({ maxBytes: opts.maxBytes, duration }));
+  if (videoKbps) args.push('-b:v', `${videoKbps}k`, '-maxrate', `${Math.floor(videoKbps * 1.2)}k`, '-bufsize', `${videoKbps * 2}k`);
+  else {
+    args.push('-crf', String(crfFor(to, opts.quality ?? 70)));
+    if (to === 'webm') args.push('-b:v', vp8 ? '20M' : '0');
+  }
+  args.push('-c:a', AUDIO_IN_VIDEO[to], '-b:a', `${audioKbps}k`, output);
+  return { passes: [args], size, duration, videoKbps, audioKbps };
 }
 
 // Подгонка под размер: если после двух проходов файл всё же больше, снижаем битрейт пропорционально.

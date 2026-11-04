@@ -98,3 +98,18 @@ test('склейка, отмена, сбой ffmpeg, не медиа', { skip, t
     assert.equal(findFfmpeg({ FORMATBOX_FFMPEG: '/nope/ffmpeg', PATH: '' })?.bin ?? null, null);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('ревью: mp4 только со звуком -> mp4 и склейка «до N МБ» на настоящем ffmpeg', { skip, timeout: 180000 }, async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fb-ff-'));
+  try {
+    const audio = path.join(dir, 'voice.mp4');
+    assert.equal(spawnSync(ff.bin, ['-hide_banner', '-y', '-f', 'lavfi', '-i', 'sine=duration=2', '-c:a', 'aac', audio]).status, 0);
+    const res = await convertFile(ff.bin, { input: audio, to: 'mp4', opts: {} });
+    assert.ok(res.bytes > 0);
+    const a = makeVideo(dir, 'a.mp4', { w: 640, h: 360, seconds: 3, noise: 30 });
+    const b = makeVideo(dir, 'b.mp4', { w: 640, h: 360, seconds: 3, noise: 30 });
+    const maxBytes = 120 * 1024;
+    const joined = await concatFiles(ff.bin, { inputs: [a, b], to: 'mp4', opts: { maxBytes } });
+    assert.ok(joined.bytes <= maxBytes, `${joined.bytes} > ${maxBytes}`);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});

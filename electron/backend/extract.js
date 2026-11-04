@@ -1,19 +1,13 @@
 // Распаковка на ПК: новая папка рядом с архивом (имя не занимает существующее), пути не выходят за неё.
 import fs from 'node:fs';
 import path from 'node:path';
-import { splitName, uniqueName } from '../../web/core/names.js';
-
-function archiveStem(name) {
-  const low = name.toLowerCase();
-  for (const two of ['.tar.gz', '.tar.xz', '.tar.bz2']) if (low.endsWith(two)) return name.slice(0, -two.length);
-  return splitName(name).stem;
-}
+import { archiveFolderName } from '../../web/core/names.js';
 
 export function extractTo(entries, source, outDir) {
   const parent = outDir || path.dirname(source);
   let folder = null;
   for (let attempt = 0; attempt < 50 && !folder; attempt++) {
-    const name = uniqueName(archiveStem(path.basename(source)), new Set(fs.readdirSync(parent)));
+    const name = archiveFolderName(path.basename(source), new Set(fs.readdirSync(parent)));
     try { fs.mkdirSync(path.join(parent, name)); folder = path.join(parent, name); } catch (err) { if (err.code !== 'EEXIST') throw err; }
   }
   if (!folder) throw new Error('no-free-name');
