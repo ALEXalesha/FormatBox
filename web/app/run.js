@@ -58,11 +58,13 @@ export async function runJob(job, ctl) {
     const route = officeRoute(job.ext, job.to, { soffice: platform.info.soffice, pandoc: platform.info.pandoc });
     if (route && route !== 'builtin') return platform.office(job, ctl);
   }
-  const bytes = await bytesOf(job, platform);
+  let bytes = await bytesOf(job, platform);
+  let ext = job.ext;
+  if (job.kind === 'image' && ['heic', 'svg'].includes(job.ext)) ({ bytes, ext } = await rasterize(bytes, job.ext));
   const worker = (op, args) => callWorker(op, args, { signal: ctl.signal, progress: ctl.progress });
   let res;
-  if (job.kind === 'image' && MESH_TARGETS.includes(job.to)) res = await worker('to3d', { bytes, ext: job.ext, to: job.to, opts: job.opts });
-  else if (job.kind === 'image') res = await worker('image', { bytes, ext: job.ext, to: job.to, opts: job.opts });
+  if (job.kind === 'image' && MESH_TARGETS.includes(job.to)) res = await worker('to3d', { bytes, ext, to: job.to, opts: job.opts });
+  else if (job.kind === 'image') res = await worker('image', { bytes, ext, to: job.to, opts: job.opts });
   else if (job.kind === 'mesh') res = await worker('mesh', { bytes, ext: job.ext, to: job.to, opts: job.opts });
   else if (job.kind === 'doc') res = await worker('doc', { bytes, ext: job.ext, to: job.to });
   else if (job.kind === 'archive') res = await worker('archiveRepack', { bytes, name: job.name, to: job.to });
@@ -81,6 +83,27 @@ export async function runText3d(job, ctl) {
   return ctl.platform.save({ ...job, name: `${job.text.slice(0, 40).replace(/[^\p{L}\p{N} _-]+/gu, '_') || 'text'}.txt` }, res.bytes, job.to, '');
 }
 
+// HEIC (модулем heic2any) и SVG (через <img>) превращаются в PNG в окне: в Worker нет для них декодеров
+async function rasterize(bytes, ext) {
+  if (ext === 'heic') {
+    const heic2any = (await import('../vendor/heic2any.js')).default;
+    const blob = await heic2any({ blob: new Blob([bytes], { type: 'image/heic' }), toType: 'image/png' });
+    return { bytes: new Uint8Array(await (Array.isArray(blob) ? blob[0] : blob).arrayBuffer()), ext: 'png' };
+  }
+  const url = URL.createObjectURL(new Blob([bytes], { type: 'image/svg+xml' }));
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const w = img.naturalWidth || 1024, h = img.naturalHeight || 1024;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+    const blob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
+    return { bytes: new Uint8Array(await blob.arrayBuffer()), ext: 'png' };
+  } finally { URL.revokeObjectURL(url); }
+}
+
 // ---------- предпросмотры для панели ----------
 const urls = new WeakMap();
 function blobUrl(job, key, bytes, type) {
@@ -92,8 +115,10 @@ function blobUrl(job, key, bytes, type) {
 }
 
 export async function previewImage(job, platform) {
-  const bytes = await bytesOf(job, platform);
-  const res = await callWorker('imagePreview', { bytes, ext: job.ext, to: job.to, opts: job.opts });
+  let bytes = await bytesOf(job, platform);
+  let ext = job.ext;
+  if (['heic', 'svg'].includes(ext)) ({ bytes, ext } = await rasterize(bytes, ext));
+  const res = await callWorker('imagePreview', { bytes, ext, to: job.to, opts: job.opts });
   const type = { jpg: 'image/jpeg', webp: 'image/webp', avif: 'image/avif' }[job.to] || 'image/png';
   return { beforeUrl: blobUrl(job, 'before', res.before, 'image/png'), afterUrl: blobUrl(job, 'after', res.after, type), bytes: res.bytes, width: res.width, height: res.height };
 }
