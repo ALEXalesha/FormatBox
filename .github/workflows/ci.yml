@@ -18,9 +18,9 @@ jobs:
       - run: node tools/vendor.js
       - name: Laws and branch coverage (core >= 90 %, all non-window code >= 80 %)
         run: npm run cover && node tools/check-coverage.js
-      - name: Mutants
-        run: node tools/mutate.js
       - run: npx playwright install --with-deps chromium
+      - name: Mutants (core, web and Electron)
+        run: xvfb-run -a node tools/mutate.js
       - name: Window tests (web)
         run: npm run test:web
       - name: Window tests (Electron, invisible)
