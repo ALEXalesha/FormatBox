@@ -155,11 +155,15 @@ export function extrudeMask(mask, opts = {}) {
   } else if (mode === 'stencil') base = combine(plateOf(), m, (a, b) => a & (1 - b));
   if (top && !(topH > baseH)) throw new Error(`${mode}: heightMm must be above baseMm`);
   checkAbort(opts.signal);
-  const mesh = stackSolid(base, baseH, top, topH, pxMm, opts);
+  opts.progress?.(0.4);
+  // упрощённые контуры близких колец могут пересечься - тогда строим по сырым (они не пересекаются никогда)
+  const mesh = stackSolid(base, baseH, top, topH, pxMm, opts) ?? stackSolid(base, baseH, top, topH, pxMm, { ...opts, simplify: 0 });
+  if (!mesh) throw new Error('triangulation failed');
   // левый нижний угол - в начало координат
   let x0 = Infinity, y0 = Infinity;
   for (let i = 0; i < mesh.positions.length; i += 3) { x0 = Math.min(x0, mesh.positions[i]); y0 = Math.min(y0, mesh.positions[i + 1]); }
   for (let i = 0; i < mesh.positions.length; i += 3) { mesh.positions[i] -= x0; mesh.positions[i + 1] -= y0; }
+  opts.progress?.(1);
   return mesh;
 }
 
@@ -216,11 +220,12 @@ function stackSolid(baseMask, baseH, topMask, topH, pxMm, opts) {
     }
     return m.get(ring);
   };
+  let failed = false;
   const cap = (polys, z, up) => {
     for (const poly of polys) {
       checkAbort(opts.signal);
       const t = triangulatePolygon(poly);
-      if (!t) throw new Error('triangulation failed');
+      if (!t) { failed = true; return; }
       // кольцо, взятое наоборот, делит вершины с исходным (src)
       const ids = [poly.outer, ...poly.holes].flatMap((r) => (r.rev ? vert(r.src, z).slice().reverse() : vert(r, z)));
       for (let i = 0; i < t.length; i += 3) {
@@ -248,5 +253,5 @@ function stackSolid(baseMask, baseH, topMask, topH, pxMm, opts) {
     walls(topRings, baseH, topH);
     cap(polygons(topRings.map((ring) => ({ ring }))), topH, true);
   }
-  return b.build();
+  return failed ? null : b.build();
 }

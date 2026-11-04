@@ -1,7 +1,7 @@
 // Диагностика и ремонт сетки под печать: сварка, мусорные грани, ориентация, дыры, мелкие оболочки, союз через manifold.
 import earcut from '../../vendor/earcut.js';
 import { bounds, triangleArea } from './measure.js';
-import { buildEdges, faceShells, orientFlags, boundaryLoops, windingNumber, isWatertight } from './topology.js';
+import { buildEdges, faceShells, orientFlags, boundaryLoops, windingNumber, isWatertight, edgeChecker, duplicateFaces } from './topology.js';
 import { compact, makeTicker } from './common.js';
 
 export { isWatertight };
@@ -62,7 +62,7 @@ export function weldVertices(mesh, tol) {
 function shellInfo(positions, indices, edges) {
   const nv = positions.length / 3;
   const { shellOf, count } = faceShells(indices, nv, edges);
-  const shells = Array.from({ length: count }, () => ({ faces: [], volume: 0, min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity], depth: 0 }));
+  const shells = Array.from({ length: count }, () => ({ faces: [], volume: 0, min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity], depth: 0, containers: [] }));
   for (let f = 0; f < shellOf.length; f++) {
     const s = shells[shellOf[f]];
     s.faces.push(f);
@@ -90,7 +90,7 @@ function shellInfo(positions, indices, edges) {
       const [x, y, z] = [positions[v], positions[v + 1], positions[v + 2]];
       for (const b of shells) {
         if (a === b || !inside(b, a)) continue;
-        if (Math.abs(windingNumber(positions, indices, b.faces, x, y, z)) > 0.5) a.depth += 1;
+        if (Math.abs(windingNumber(positions, indices, b.faces, x, y, z)) > 0.5) { a.depth += 1; a.containers.push(b); }
       }
     }
   }
@@ -107,11 +107,6 @@ function overlaps(a, b) {
   return true;
 }
 
-function faceKey(a, b, c) {
-  const [x, y, z] = [a, b, c].sort((p, q) => p - q);
-  return `${x},${y},${z}`;
-}
-
 // Отчёт о состоянии сетки без изменений
 export function analyzeMesh(mesh) {
   const { positions, indices } = mesh;
@@ -119,15 +114,12 @@ export function analyzeMesh(mesh) {
   const nf = indices.length / 3;
   const diag = bounds(mesh).diagonal;
   const eps = (diag * 1e-9) ** 2;
-  let degenerate = 0, duplicates = 0;
-  const keys = new Set();
+  let degenerate = 0;
   for (let f = 0; f < nf; f++) {
     const a = indices[3 * f], b = indices[3 * f + 1], c = indices[3 * f + 2];
     if (a === b || b === c || a === c || triangleArea(positions, a, b, c) <= eps) degenerate += 1;
-    const key = faceKey(a, b, c);
-    if (keys.has(key)) duplicates += 1;
-    keys.add(key);
   }
+  const duplicates = duplicateFaces(indices, nv).reduce((s, v) => s + v, 0);
   const edges = buildEdges(indices, nv);
   let openEdges = 0, nonManifoldEdges = 0;
   for (let e = 0; e < edges.edgeCount; e++) {
@@ -172,17 +164,17 @@ export async function repairMesh(mesh, opts = {}) {
 
   // мусор: вырожденные по индексам, дубли (в любом порядке обхода), третьи и дальше грани на ребре
   const keep = [];
-  const keys = new Set();
-  const edgeUse = new Map();
+  const nvW = positions.length / 3;
+  const dup = duplicateFaces(src, nvW);
+  const { faceEdges, edgeCount } = buildEdges(src, nvW);
+  const use = new Int32Array(edgeCount);
   for (let f = 0; f < src.length / 3; f++) {
     const a = src[3 * f], b = src[3 * f + 1], c = src[3 * f + 2];
     if (a === b || b === c || a === c) { report.removedDegenerate += 1; continue; }
-    const key = faceKey(a, b, c);
-    if (keys.has(key)) { report.removedDuplicates += 1; continue; }
-    const ek = [ekey(a, b), ekey(b, c), ekey(c, a)];
-    if (ek.some((k) => (edgeUse.get(k) ?? 0) >= 2)) { report.removedNonManifold += 1; continue; }
-    keys.add(key);
-    for (const k of ek) edgeUse.set(k, (edgeUse.get(k) ?? 0) + 1);
+    if (dup[f]) { report.removedDuplicates += 1; continue; }
+    const e0 = faceEdges[3 * f], e1 = faceEdges[3 * f + 1], e2 = faceEdges[3 * f + 2];
+    if (use[e0] >= 2 || use[e1] >= 2 || use[e2] >= 2) { report.removedNonManifold += 1; continue; }
+    use[e0] += 1; use[e1] += 1; use[e2] += 1;
     keep.push(a, b, c);
   }
   let indices = Uint32Array.from(keep);
@@ -200,8 +192,12 @@ export async function repairMesh(mesh, opts = {}) {
     if (loops.length) {
       const pos = Array.from(positions);
       const tris = Array.from(indices);
+      // диагонали заплаток не должны совпасть с уже существующими рёбрами
+      const known = edgeChecker(indices, nv0);
+      const added = new Set();
+      const edges = { has: (a, b) => known(a, b) || added.has(ekey(a, b)), add: (a, b) => added.add(ekey(a, b)) };
       for (const loop of loops) {
-        fillLoop(loop, pos, tris, edgeUse, opts);
+        fillLoop(loop, pos, tris, edges, opts);
         report.holesFilled += 1;
         await tick(0.35 + (0.25 * report.holesFilled) / loops.length);
       }
@@ -237,9 +233,10 @@ export async function repairMesh(mesh, opts = {}) {
   const crossing = tops.some((a, i) => tops.some((b, j) => j > i && overlaps(a, b)));
   const mode = opts.manifold ?? 'auto';
   if (mode === true || (mode === 'auto' && crossing)) {
-    report.manifold = await manifoldUnion(result, opts);
+    const res = await manifoldUnion(result, opts);
+    report.manifold = res.status;
+    if (res.mesh) result = res.mesh;
   }
-  if (report.manifold.mesh) { result = report.manifold.mesh; report.manifold = report.manifold.status; }
   await tick(0.95);
   report.after = analyzeMesh(result);
   report.watertight = report.after.watertight;
@@ -251,16 +248,16 @@ function ekey(a, b) {
 }
 
 // Дыра: плоскую триангулируем ушами (earcut), остальное - веером от центра (новая вершина не даёт повторных рёбер)
-function fillLoop(loop, pos, tris, edgeUse, opts) {
+function fillLoop(loop, pos, tris, edges, opts) {
   const n = loop.length;
   if (n === 3) {
     tris.push(loop[0], loop[1], loop[2]);
     return;
   }
-  const flat = new Set(loop).size === n && planarTriangles(loop, pos, edgeUse, opts.planarTolerance ?? 1e-3);
+  const flat = new Set(loop).size === n && planarTriangles(loop, pos, edges, opts.planarTolerance ?? 1e-3);
   if (flat) {
     tris.push(...flat);
-    for (let i = 0; i < flat.length; i += 3) for (let k = 0; k < 3; k++) edgeUse.set(ekey(flat[i + k], flat[i + ((k + 1) % 3)]), 2);
+    for (let i = 0; i < flat.length; i += 3) for (let k = 0; k < 3; k++) edges.add(flat[i + k], flat[i + ((k + 1) % 3)]);
     return;
   }
   let cx = 0, cy = 0, cz = 0;
@@ -270,7 +267,7 @@ function fillLoop(loop, pos, tris, edgeUse, opts) {
   for (let i = 0; i < n; i++) tris.push(loop[i], loop[(i + 1) % n], c);
 }
 
-function planarTriangles(loop, pos, edgeUse, tolerance) {
+function planarTriangles(loop, pos, edges, tolerance) {
   const n = loop.length;
   const P = (i, k) => pos[3 * loop[i] + k];
   let nx = 0, ny = 0, nz = 0, cx = 0, cy = 0, cz = 0;
@@ -316,7 +313,7 @@ function planarTriangles(loop, pos, edgeUse, tolerance) {
     const p = Math.floor(key / n), q = key % n;
     if (cnt !== 1) return null;
     if (q === (p + 1) % n) continue;
-    if (directed.get(q * n + p) !== 1 || edgeUse.has(ekey(loop[p], loop[q]))) return null;
+    if (directed.get(q * n + p) !== 1 || edges.has(loop[p], loop[q])) return null;
   }
   for (let i = 0; i < n; i++) if (!directed.has(i * n + ((i + 1) % n))) return null;
   return out;
@@ -333,15 +330,11 @@ async function manifoldUnion(mesh, opts) {
   const nv = mesh.positions.length / 3;
   const shells = shellInfo(mesh.positions, mesh.indices, buildEdges(mesh.indices, nv));
   // группа = внешняя оболочка + её полости
-  const groups = shells.filter((s) => s.depth === 0).map((s) => [s]);
-  for (const s of shells) {
-    if (s.depth === 0) continue;
-    const owner = groups.find((g) => inside(g[0], s));
-    if (owner) owner.push(s);
-  }
+  const groups = new Map(shells.filter((s) => s.depth === 0).map((s) => [s, [s]]));
+  for (const s of shells) if (s.depth > 0) groups.get(s.containers.find((c) => c.depth === 0))?.push(s);
   const parts = [];
   try {
-    for (const g of groups) {
+    for (const g of groups.values()) {
       const idx = [];
       for (const s of g) for (const f of s.faces) idx.push(mesh.indices[3 * f], mesh.indices[3 * f + 1], mesh.indices[3 * f + 2]);
       const sub = compact(mesh.positions, Uint32Array.from(idx));
@@ -357,7 +350,7 @@ async function manifoldUnion(mesh, opts) {
     if (all !== parts[0]) all.delete();
     return { status: parts.length > 1 ? 'union' : 'ok', mesh: result };
   } catch (e) {
-    return `rejected: ${e.message || e}`;
+    return { status: `rejected: ${e.message ?? e}` };
   } finally {
     for (const p of parts) p.delete();
   }

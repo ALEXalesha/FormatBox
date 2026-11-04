@@ -109,7 +109,9 @@ export function gridSolid(xs, ys, heights, map, wrap = false) {
 }
 
 // gray: { width, height, data }; opts: shape ('flat' | 'curved' | 'cylinder'), widthMm, minMm, maxMm, borderMm,
-// arcDeg (curved), baseMm (цилиндр: сплошное кольцо снизу), invert, maxPixels, signal
+// arcDeg (curved), baseMm (цилиндр: сплошное кольцо снизу), invert, maxPixels, signal, progress.
+// widthMm: плоский - полная ширина; изогнутый - длина дуги по задней стороне; цилиндр - внешний диаметр.
+// Плоский лежит на столе (толщина по Z), изогнутый и цилиндр стоят (картинка по Z).
 export function lithophane(gray, opts = {}) {
   const { shape = 'flat', widthMm = 100, minMm = 0.8, maxMm = 3, borderMm = 0, arcDeg = 120, invert = false, baseMm = 0 } = opts;
   if (!(maxMm > minMm && minMm > 0)) throw new Error('need 0 < minMm < maxMm');
@@ -149,6 +151,7 @@ function build(img, xs, ys, value, frame, map, wrap, opts) {
   const heights = new Float64Array(nx * ny);
   for (let j = 0; j < ny; j++) {
     checkAbort(opts.signal);
+    if (opts.progress && j % 64 === 0) opts.progress((0.8 * j) / ny);
     // первая строка картинки - верх: на оси y она дальше всех
     const row = ys.pixel[j] < 0 ? -1 : img.height - 1 - ys.pixel[j];
     for (let i = 0; i < nx; i++) {
@@ -156,7 +159,9 @@ function build(img, xs, ys, value, frame, map, wrap, opts) {
       heights[j * nx + i] = row < 0 || col < 0 ? frame : value(img.data[row * img.width + col]);
     }
   }
-  return gridSolid(xs.at, ys.at, heights, map, wrap);
+  const mesh = gridSolid(xs.at, ys.at, heights, map, wrap);
+  opts.progress?.(1);
+  return mesh;
 }
 
 // Рельеф: карта высот, светлое выше. opts: widthMm, baseMm (подложка), heightMm (перепад), invert, maxPixels

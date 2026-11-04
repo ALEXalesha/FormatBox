@@ -178,7 +178,7 @@ ops.to3d = async ({ bytes, ext, to, opts }, ctl) => {
     mesh = await M.extrudeSilhouette(gray, { mode: kind, widthMm, heightMm: opts.heightMm ?? 3 }, ctl);
   }
   const extra = {};
-  if (opts.colors > 1) extra.heights = M.colorChangeHeights(mesh, { colors: opts.colors, layerHeight: 0.2 });
+  if (opts.colors > 1) extra.heights = M.colorChangeHeights(mesh, opts.colors, 0.2).map((c) => c.z);
   return { bytes: M.writeMesh(mesh, to), triangles: mesh.indices.length / 3, ...extra };
 };
 

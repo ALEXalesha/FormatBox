@@ -1,6 +1,6 @@
 // Упрощение сетки схлопыванием рёбер по квадрикам ошибки (Garland-Heckbert).
 // Схлопывание запрещено, если оно ломает многообразие (условие связи), выворачивает грань или трогает «плохие» рёбра.
-import { compact, makeTicker } from './common.js';
+import { compact, makeTicker, checkAbort } from './common.js';
 
 // Мини-куча по стоимости
 function createHeap() {
@@ -53,6 +53,7 @@ function qcost(q, x, y, z) {
 // target: { ratio } (доля треугольников) или { targetTriangles }; ctl: { signal, progress }
 export async function decimate(mesh, target = {}, ctl = {}) {
   const tick = makeTicker(ctl);
+  checkAbort(ctl.signal);
   const nf = mesh.indices.length / 3;
   const goal = Math.max(0, Math.floor(target.targetTriangles ?? nf * (target.ratio ?? 0.5)));
   if (nf <= goal) return { positions: mesh.positions.slice(), indices: mesh.indices.slice() };
