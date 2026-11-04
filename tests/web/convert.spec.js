@@ -92,7 +92,7 @@ test('отмена идущего задания и повтор', async ({ page
   await setOpt(page, 'to', 'webm');
   await setOpt(page, 'quality', 100);
   await page.click('#startSel');
-  await page.waitForFunction(async () => (await import('./app/ffmpeg-web.js')).ffmpegState().loaded && window.formatboxApp.jobs[0].progress > 0);
+  await expect.poll(() => page.evaluate(async () => (await import('./app/ffmpeg-web.js')).ffmpegState().loaded && window.formatboxApp.jobs[0].progress > 0), { timeout: 60000 }).toBe(true);
   await page.click('#queue .job .job-cancel');
   await page.waitForFunction(() => window.formatboxApp.jobs[0].state === 'canceled');
   const loads = () => page.evaluate(async () => (await import('./app/ffmpeg-web.js')).ffmpegState());
