@@ -1,34 +1,35 @@
 // Документы на ПК: LibreOffice (soffice) и pandoc, если они есть. Нет - окно пользуется встроенным модулем
 // и предлагает докачать LibreOffice кнопкой.
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { saveResult } from './files.js';
 import { officeRoute } from '../../web/core/docroute.js';
+import { execText } from './ffmpeg.js';
 
 export const LIBREOFFICE_URL = 'https://www.libreoffice.org/download/download-libreoffice/';
 
-function works(bin, args, env) {
-  const r = spawnSync(bin, args, { encoding: 'utf8', env, timeout: 30000, windowsHide: true });
-  return r.status === 0 ? (r.stdout || '').trim().split('\n')[0] : null;
+async function works(bin, args, env) {
+  const r = await execText(bin, args, { env, timeout: 30000 });
+  return r.ok ? r.stdout.trim().split('\n')[0] : null;
 }
 
-export function findOffice(env = process.env, platform = process.platform) {
+export async function findOffice(env = process.env, platform = process.platform) {
   const candidates = [env.FORMATBOX_SOFFICE, 'soffice', 'libreoffice'];
   if (platform === 'win32') candidates.push(path.join(env.ProgramFiles || 'C:\\Program Files', 'LibreOffice', 'program', 'soffice.exe'));
   if (platform === 'darwin') candidates.push('/Applications/LibreOffice.app/Contents/MacOS/soffice');
   for (const bin of candidates.filter(Boolean)) {
-    const v = works(bin, ['--version'], env);
+    const v = await works(bin, ['--version'], env);
     if (v) return { bin, version: v };
   }
   return null;
 }
 
-export function findPandoc(env = process.env) {
+export async function findPandoc(env = process.env) {
   for (const bin of [env.FORMATBOX_PANDOC, 'pandoc'].filter(Boolean)) {
-    const v = works(bin, ['--version'], env);
+    const v = await works(bin, ['--version'], env);
     if (v) return { bin, version: v };
   }
   return null;

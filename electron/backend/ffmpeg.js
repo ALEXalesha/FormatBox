@@ -1,6 +1,6 @@
 // Настоящий ffmpeg для версии на ПК: отдельный процесс, отмена, ход работы, подгонка под размер.
 // Те же команды строит web/core/media.js - его же использует браузер с ffmpeg.wasm.
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn, execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -8,11 +8,19 @@ import { parseProbe, parseProgress } from '../../web/core/media.js';
 import { runMediaJob, runConcatJob } from '../../web/core/ffjob.js';
 import { saveResult } from './files.js';
 
-export function findFfmpeg(env = process.env) {
-  const list = [env.FORMATBOX_FFMPEG, 'ffmpeg'].filter(Boolean);
-  for (const bin of list) {
-    const r = spawnSync(bin, ['-version'], { encoding: 'utf8', env });
-    if (r.status === 0) return { bin, version: (/ffmpeg version (\S+)/.exec(r.stdout) || [])[1] || '?' };
+// Запуск без ожидания главного процесса (окно не замирает) и с пределом времени
+export function execText(bin, args, { env = process.env, timeout = 20000 } = {}) {
+  return new Promise((resolve) => {
+    execFile(bin, args, { encoding: 'utf8', env, timeout, windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (err, stdout, stderr) => {
+      resolve({ ok: !err, stdout: stdout || '', stderr: stderr || '' });
+    });
+  });
+}
+
+export async function findFfmpeg(env = process.env) {
+  for (const bin of [env.FORMATBOX_FFMPEG, 'ffmpeg'].filter(Boolean)) {
+    const r = await execText(bin, ['-version'], { env });
+    if (r.ok) return { bin, version: (/ffmpeg version (\S+)/.exec(r.stdout) || [])[1] || '?' };
   }
   return null;
 }
@@ -41,8 +49,7 @@ export function runFfmpeg(bin, args, { signal, duration, onProgress, cwd } = {})
 }
 
 export async function probe(bin, file) {
-  const r = spawnSync(bin, ['-hide_banner', '-i', file], { encoding: 'utf8' });
-  return parseProbe(r.stderr || '');
+  return parseProbe((await execText(bin, ['-hide_banner', '-i', file])).stderr);
 }
 
 // Один файл: { input, to, opts, outDir } -> { path, name, bytes }. Источник не меняется, имя не перетирает чужое.

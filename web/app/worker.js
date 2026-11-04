@@ -110,12 +110,14 @@ function hasEdits(o) {
 async function encodeImage(img, to, opts, ctl) {
   const I = await Img();
   if (to === 'ico') return I.encodeIco(img, opts.icoSizes || I.ICO_SIZES);
-  if (to === 'bmp') return I.encodeBmp(img);
+  // у PNG и BMP нет шкалы качества: «до N МБ» для них - только уменьшение размеров
+  const lossless = to === 'png' || to === 'bmp';
   // в JPEG нет прозрачности: canvas сделал бы её чёрной, кладём на белый
-  const encodeAt = (im, q) => (to === 'png' ? Promise.resolve(I.encodePng(im)) : canvasEncode(to === 'jpg' ? I.flatten(im) : im, MIME[to], q / 100));
+  const encodeAt = (im, q) => (to === 'bmp' ? Promise.resolve(I.encodeBmp(im)) : to === 'png' ? Promise.resolve(I.encodePng(im)) : canvasEncode(to === 'jpg' ? I.flatten(im) : im, MIME[to], q / 100));
   if (opts.maxBytes) {
     try {
-      const res = await I.encodeToSize(img, opts.maxBytes, (im, q) => encodeAt(im, q), { allowDownscale: true, signal: ctl.signal });
+      const range = lossless ? { minQuality: 100, maxQuality: 100 } : {};
+      const res = await I.encodeToSize(img, opts.maxBytes, (im, q) => encodeAt(im, q), { ...range, allowDownscale: true, signal: ctl.signal });
       return res.bytes;
     } catch (err) {
       if (err.code === 'TOO_SMALL') throw new Error('size-unreachable');
@@ -125,12 +127,17 @@ async function encodeImage(img, to, opts, ctl) {
   return encodeAt(img, opts.quality ?? 85);
 }
 
+// Тот же формат и никаких правок: без перекодирования. Сведения убираются (ориентация остаётся,
+// иначе портретное фото ляжет набок) или, если галочка снята, файл копируется как есть.
+async function untouched(bytes, ext, to, opts) {
+  if (to !== ext || hasEdits(opts) || !['jpg', 'png', 'webp'].includes(ext)) return null;
+  if (opts.stripMeta === false) return bytes.slice();
+  return (await Img()).stripMetadata(bytes, { keepIcc: true, keepOrientation: true }).bytes;
+}
+
 ops.image = async ({ bytes, ext, to, opts }, ctl) => {
-  const I = await Img();
-  // только убрать сведения, без перекодирования: сжатые данные остаются байт в байт
-  if (to === ext && opts.stripMeta !== false && !hasEdits(opts) && ['jpg', 'png', 'webp'].includes(ext)) {
-    return { bytes: I.stripMetadata(bytes, { keepIcc: true }).bytes, width: 0, height: 0, lossless: true };
-  }
+  const same = await untouched(bytes, ext, to, opts);
+  if (same) return { bytes: same, width: 0, height: 0, lossless: true };
   const img = await editImage(await decodeImage(bytes, ext), opts, ctl);
   ctl.progress(0.5);
   const out = await encodeImage(img, to, opts, ctl);
@@ -146,8 +153,10 @@ ops.imagePreview = async ({ bytes, ext, to, opts }) => {
   img = await editImage(img, opts, {});
   const out = to === 'ico' || to === 'bmp' ? await canvasEncode(img, 'image/png') : await encodeImage(img, to, opts, {});
   const shown = to === 'avif' || to === 'jpg' || to === 'webp' || to === 'png' ? out : await canvasEncode(img, 'image/png');
-  const realSize = to === 'ico' || to === 'bmp' ? (await encodeImage(img, to, opts, {})).length : out.length;
-  return { before, after: shown, bytes: realSize, width: img.width, height: img.height, full };
+  const same = await untouched(bytes, ext, to, opts);
+  // размер - того, что будет сохранено (без пережатия - исходные байты без сведений)
+  const realSize = same ? same.length : to === 'ico' || to === 'bmp' ? (await encodeImage(img, to, opts, {})).length : out.length;
+  return { before, after: same ? before : shown, bytes: realSize, width: img.width, height: img.height, full };
 };
 
 // картинка -> серая карта для 3D
@@ -259,9 +268,16 @@ ops.audio = async ({ bytes, opts, previewSeconds }, ctl) => {
   } else if (opts.chip) audio = A.chipify(audio, { preset: opts.chip }, { signal: ctl.signal });
   else if (previewSeconds) audio = { ...audio, channels: audio.channels.map((c) => c.subarray(0, Math.round(audio.sampleRate * previewSeconds))) };
   const a = opts.audio || {};
+  // «как есть» = как в исходном файле (keep - его заголовок), а не молча 16 бит
+  const keep = opts.keep || { bits: 16, float: false };
+  const bits = a.bits || keep.bits || 16;
+  const float = a.bits ? a.bits === 32 : Boolean(keep.float);
   if (a.bits || a.sampleRate || a.channels || (a.dither && a.dither !== 'none')) {
-    const res = A.convertPcm(audio, { sampleRate: a.sampleRate || audio.sampleRate, bits: a.bits || 16, float: a.bits === 32, channels: a.channels || audio.channels.length, dither: a.dither || 'none' }, { signal: ctl.signal });
-    return { bytes: res.bytes ?? res.wav };
+    const res = A.convertPcm(audio, {
+      sampleRate: a.sampleRate || Math.min(96000, Math.max(8000, audio.sampleRate)),
+      bits, float, channels: a.channels || Math.min(2, audio.channels.length), dither: a.dither || 'none',
+    }, { signal: ctl.signal });
+    return { bytes: res.bytes };
   }
-  return { bytes: A.encodeWav(audio, { bits: 16 }) };
+  return { bytes: A.encodeWav(audio, { bits, float }) };
 };

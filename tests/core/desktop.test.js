@@ -34,7 +34,7 @@ test('размер запоминается: сохранить и прочит�
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('маршрут документа: LibreOffice, pandoc или встроенный модуль', () => {
+test('маршрут документа: LibreOffice, pandoc или встроенный модуль', async () => {
   const soffice = { bin: 'soffice' }, pandoc = { bin: 'pandoc' };
   assert.equal(officeRoute('docx', 'pdf', { soffice, pandoc }), 'soffice');
   assert.equal(officeRoute('doc', 'docx', { soffice }), 'soffice');
@@ -44,14 +44,14 @@ test('маршрут документа: LibreOffice, pandoc или встрое
   assert.equal(officeRoute('docx', 'pdf', {}), 'builtin');
   assert.equal(officeRoute('txt', 'md', { pandoc }), 'builtin');
   assert.equal(officeRoute('pdf', 'pdf', { soffice }), null);
-  assert.equal(findOffice({ FORMATBOX_SOFFICE: '/nope', PATH: '' }, 'linux'), null);
-  assert.equal(findOffice({ PATH: '', ProgramFiles: '/nope' }, 'win32'), null);
-  assert.equal(findOffice({ PATH: '' }, 'darwin'), null);
-  assert.equal(findPandoc({ PATH: '' }), null);
+  assert.equal(await findOffice({ FORMATBOX_SOFFICE: '/nope', PATH: '' }, 'linux'), null);
+  assert.equal(await findOffice({ PATH: '', ProgramFiles: '/nope' }, 'win32'), null);
+  assert.equal(await findOffice({ PATH: '' }, 'darwin'), null);
+  assert.equal(await findPandoc({ PATH: '' }), null);
 });
 
-const office = findOffice();
-const pandoc = findPandoc();
+const office = await findOffice();
+const pandoc = await findPandoc();
 
 test('настоящий LibreOffice и pandoc: результат рядом, источник цел, имя не перетёрто', { skip: office && pandoc ? false : 'no soffice/pandoc', timeout: 180000 }, async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fb-office-'));
@@ -74,4 +74,30 @@ test('настоящий LibreOffice и pandoc: результат рядом, �
     fs.writeFileSync(path.join(dir, 'bad.md'), 'x');
     await assert.rejects(convertOffice({ tools: { pandoc: { bin: office.bin } }, input: path.join(dir, 'bad.md'), from: 'md', to: 'html' }), /office-failed|ENOENT/);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('закон (ревью №17): окно трогает только выданные ему файлы и папки (зерно 62)', async () => {
+  const { createGuard, checkTarget, checkTag } = await import('../../electron/backend/guard.js');
+  const r = rng(62);
+  const g = createGuard();
+  const given = ['/home/u/a.mp4', '/home/u/b c/фото.jpg'].map((p) => g.allowFile(p));
+  g.allowDir('/home/u/out');
+  for (let n = 0; n < 500; n++) {
+    const p = r.pick(['/etc/passwd', '/home/u/a.mp4', '/home/u/../u/a.mp4', '/home/u/b c/фото.jpg', '/home/u/a.mp4/../evil', 'relative.mp4', '/home/u/out']);
+    const ok = given.includes(path.resolve(p));
+    if (ok) assert.equal(g.file(p), path.resolve(p));
+    else assert.throws(() => g.file(p), /not-allowed/);
+  }
+  assert.throws(() => g.file(42), /not-allowed/);
+  assert.equal(g.outDir(null), null);
+  assert.equal(g.outDir('/home/u/out/'), '/home/u/out');
+  assert.throws(() => g.outDir('/home/u/.config/autostart'), /not-allowed/);
+  assert.throws(() => g.result('/home/u/a.mp4'), /not-allowed/);
+  g.allowResult('/home/u/a.webm');
+  assert.equal(g.result('/home/u/a.webm'), '/home/u/a.webm');
+  for (const bad of ['../x', 'desktop', 'mp4/../../x', '', null, '__proto__', 'constructor']) assert.throws(() => checkTarget(bad), /bad-target/);
+  for (const good of ['mp4', 'tar.gz', '3mf', 'gcode']) assert.equal(checkTarget(good), good);
+  assert.equal(checkTag('nes'), 'nes');
+  assert.equal(checkTag(), '');
+  for (const bad of ['../a', 'a/b', 'x'.repeat(30), 5]) assert.throws(() => checkTag(bad), /bad-tag/);
 });

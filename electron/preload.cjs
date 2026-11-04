@@ -24,5 +24,11 @@ contextBridge.exposeInMainWorld('formatbox', {
   show: (p) => ipcRenderer.invoke('fb:show', p),
   getOffice: () => ipcRenderer.invoke('fb:get-office'),
   onProgress: (fn) => { listeners.add(fn); return () => listeners.delete(fn); },
-  pathFor: (file) => webUtils.getPathForFile(file),
+  // путь настоящего файла с диска (перетаскивание, выбор): главный процесс заносит его в разрешённые
+  pathFor: (file) => {
+    const p = webUtils.getPathForFile(file);
+    if (p) ipcRenderer.sendSync('fb:allow-dropped', p);
+    return p;
+  },
+  head: (p, n) => ipcRenderer.invoke('fb:head', p, n),
 });

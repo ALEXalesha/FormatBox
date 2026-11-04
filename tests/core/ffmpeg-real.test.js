@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { rng } from '../../web/core/rand.js';
 import { findFfmpeg, convertFile, concatFiles, probe, runFfmpeg } from '../../electron/backend/ffmpeg.js';
 
-const ff = findFfmpeg();
+const ff = await findFfmpeg();
 const skip = ff ? false : 'ffmpeg not installed';
 const hash = (f) => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
 
@@ -95,7 +95,7 @@ test('склейка, отмена, сбой ffmpeg, не медиа', { skip, t
     fs.writeFileSync(path.join(dir, 'text.mp4'), 'not a video');
     await assert.rejects(convertFile(ff.bin, { input: path.join(dir, 'text.mp4'), to: 'mp4' }), /not-media/);
     await assert.rejects(convertFile(ff.bin, { input: a, to: 'wav', opts: { maxBytes: 1000 } }), /size-needs-compressed-audio/);
-    assert.equal(findFfmpeg({ FORMATBOX_FFMPEG: '/nope/ffmpeg', PATH: '' })?.bin ?? null, null);
+    assert.equal((await findFfmpeg({ FORMATBOX_FFMPEG: '/nope/ffmpeg', PATH: '' }))?.bin ?? null, null);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 

@@ -99,3 +99,48 @@ for (const theme of ['glass', 'light']) {
     await app.close();
   });
 }
+
+test('ПК, ревью №17: окно не читает и не пишет чужие пути', async () => {
+  const { app, page } = await launch();
+  const dir = workDir('photo.jpg');
+  const outside = path.join(dir, 'photo.jpg');
+  const tries = await page.evaluate(async (p) => {
+    const fb = window.formatbox;
+    const res = {};
+    for (const [k, fn] of Object.entries({
+      read: () => fb.read(p), head: () => fb.head(p), stat: () => fb.stat(p), probe: () => fb.probe(p),
+      saveEvil: () => fb.save({ bytes: new Uint8Array([1]), source: null, name: 'evil', to: '../../x', outDir: null }),
+      saveDir: () => fb.save({ bytes: new Uint8Array([1]), source: null, name: 'evil', to: 'txt', outDir: '/tmp' }),
+      show: () => fb.show(p),
+    })) { try { await fn(); res[k] = 'allowed'; } catch (e) { res[k] = /not-allowed|bad-target/.test(e.message) ? 'refused' : e.message; } }
+    return res;
+  }, outside);
+  for (const [k, v] of Object.entries(tries)) expect(v, k).toBe('refused');
+  await addPaths(page, [outside]);
+  expect(await page.evaluate((p) => window.formatbox.head(p, 3).then((b) => [...b]), outside)).toEqual([0xff, 0xd8, 0xff]);
+  await app.close();
+});
+
+test('ПК, ревью №6: текст в 3D кладётся в «Документы», склейка и «до N МБ» работают', async () => {
+  const { app, page, docs } = await launch();
+  await page.click('#toolsBtn');
+  await page.click('#toolText3d');
+  await page.fill('#text3dText', 'FB');
+  await page.click('#text3dMake');
+  await expect(page.locator('#queue .job.sel')).toHaveCount(1);
+  let jobs = await runSelected(page);
+  expect(jobs[0].state, jobs[0].error).toBe('done');
+  expect(fs.existsSync(path.join(docs, 'FB.stl'))).toBe(true);
+  const dir = workDir('clip.mp4', 'short.mp4');
+  await addPaths(page, [path.join(dir, 'clip.mp4'), path.join(dir, 'short.mp4')]);
+  await page.locator('#queue .job').nth(1).click({ position: { x: 10, y: 10 } });
+  await page.locator('#queue .job').nth(2).click({ position: { x: 10, y: 10 }, modifiers: ['Control'] });
+  await page.click('#toolsBtn');
+  await page.click('#toolJoin');
+  await setOpt(page, 'maxMb', 0.05);
+  jobs = await runSelected(page);
+  const joined = jobs.at(-1);
+  expect(joined.state, joined.error).toBe('done');
+  expect(fs.statSync(path.join(dir, joined.result.name)).size).toBeLessThanOrEqual(0.05 * 1024 * 1024);
+  await app.close();
+});

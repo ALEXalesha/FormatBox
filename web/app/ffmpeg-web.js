@@ -9,6 +9,16 @@ let loading = null;
 let logTail = '';
 let onLine = null;
 let loads = 0;
+let calls = 0;
+let lock = Promise.resolve();
+
+// Один ffmpeg.wasm на всё окно: вызовы идут строго по очереди, у каждого свои имена файлов.
+// Без этого предпросмотр звука, начатый во время задания, подменял его вход и выход.
+function serial(fn) {
+  const run = lock.then(fn, fn);
+  lock = run.catch(() => {});
+  return run;
+}
 
 // сколько раз ffmpeg загружался: после отмены он убит и грузится заново
 export const ffmpegState = () => ({ loaded: Boolean(ff), loads });
@@ -66,11 +76,17 @@ async function probeIn(inst, name) {
 const safeExt = (ext) => String(ext || 'bin').replace(/[^a-z0-9.]/gi, '');
 
 // bytes -> { bytes: Uint8Array результата, info }
-export async function ffmpegConvert({ bytes, ext, to, opts }, { signal, progress, onLoading } = {}) {
+export function ffmpegConvert(job, ctl = {}) {
+  return serial(() => convertNow(job, ctl));
+}
+
+async function convertNow({ bytes, ext, to, opts }, { signal, progress, onLoading } = {}) {
+  if (signal?.aborted) throw new Error('canceled');
   const inst = await instance(onLoading);
   if (signal?.aborted) throw new Error('canceled');
-  const input = `in.${safeExt(ext)}`;
-  const output = `out.${safeExt(to)}`;
+  const n = ++calls;
+  const input = `in${n}.${safeExt(ext)}`;
+  const output = `out${n}.${safeExt(to)}`;
   // копия: ffmpeg.wasm забирает буфер в свой поток, а исходные байты нужны окну снова
   await inst.writeFile(input, bytes.slice());
   try {
@@ -78,7 +94,7 @@ export async function ffmpegConvert({ bytes, ext, to, opts }, { signal, progress
       probe: () => probeIn(inst, input),
       exec: (args, { duration, onProgress }) => exec(inst, args, { signal, duration, onProgress }),
       outSize: async () => (await inst.readFile(output)).length,
-      input, output, to, opts: { ...opts, wasm: true }, passlog: 'fb2pass', nullOutput: '/dev/null',
+      input, output, to, opts: { ...opts, wasm: true }, passlog: `fb2pass${n}`, nullOutput: '/dev/null',
     }, { signal, progress });
     const data = await inst.readFile(output);
     return { bytes: data, info: res.info };
@@ -89,22 +105,30 @@ export async function ffmpegConvert({ bytes, ext, to, opts }, { signal, progress
   }
 }
 
-export async function ffmpegProbe({ bytes, ext }, { onLoading } = {}) {
-  const inst = await instance(onLoading);
-  const input = `probe.${safeExt(ext)}`;
-  await inst.writeFile(input, bytes.slice());
-  try { return await probeIn(inst, input); } finally { await inst.deleteFile(input).catch(() => {}); }
+export function ffmpegProbe({ bytes, ext }, { onLoading } = {}) {
+  return serial(async () => {
+    const inst = await instance(onLoading);
+    const input = `probe${++calls}.${safeExt(ext)}`;
+    await inst.writeFile(input, bytes.slice());
+    try { return await probeIn(inst, input); } finally { await inst.deleteFile(input).catch(() => {}); }
+  });
 }
 
-export async function ffmpegConcat(items, to, opts, { signal, progress, onLoading } = {}) {
+export function ffmpegConcat(items, to, opts, ctl = {}) {
+  return serial(() => concatNow(items, to, opts, ctl));
+}
+
+async function concatNow(items, to, opts, { signal, progress, onLoading } = {}) {
+  if (signal?.aborted) throw new Error('canceled');
   const inst = await instance(onLoading);
+  const n = ++calls;
   const inputs = [];
   for (let i = 0; i < items.length; i++) {
-    const name = `j${i}.${safeExt(items[i].ext)}`;
+    const name = `j${n}-${i}.${safeExt(items[i].ext)}`;
     await inst.writeFile(name, items[i].bytes.slice());
     inputs.push(name);
   }
-  const output = `joined.${safeExt(to)}`;
+  const output = `joined${n}.${safeExt(to)}`;
   try {
     await runConcatJob({
       probeAll: async () => { const list = []; for (const n of inputs) list.push(await probeIn(inst, n)); return list; },

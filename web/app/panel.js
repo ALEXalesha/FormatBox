@@ -13,10 +13,13 @@ const isVideoOut = (j) => VIDEO.includes(j.to);
 const isAudioOut = (j) => AUDIO.includes(j.to);
 const isImageOut = (j) => j.kind === 'image' && !MESH_TARGETS.includes(j.to);
 const to3d = (j) => j.kind === 'image' && MESH_TARGETS.includes(j.to);
+// склейка умеет только это: остальные поля видео до неё не доходят
+const JOIN_FIELDS = new Set(['maxMb', 'maxPx', 'maxPxN', 'quality', 'fps']);
 
 // type: select | number | range | check | text; opts - [значение, ключ подписи]
 const FIELDS = [
-  { id: 'maxMb', label: 'opt.maxMb', type: 'number', step: 0.1, min: 0, show: (j) => isVideoOut(j) || (isAudioOut(j) && !PCM.includes(j.to)) || isImageOut(j),
+  // GIF подгоняется пикселями, ICO - набором размеров: «до N МБ» к ним не применить
+  { id: 'maxMb', label: 'opt.maxMb', type: 'number', step: 0.1, min: 0, show: (j) => !['gif', 'ico'].includes(j.to) && (isVideoOut(j) || (isAudioOut(j) && !PCM.includes(j.to)) || isImageOut(j)),
     get: (o) => (o.maxBytes ? +(o.maxBytes / MB).toFixed(3) : ''), set: (o, v) => { o.maxBytes = num(v) > 0 ? Math.floor(num(v) * MB) : undefined; } },
   { id: 'maxPx', label: 'opt.maxPx', type: 'select', show: (j) => isVideoOut(j) || isImageOut(j),
     options: [['', 'opt.any'], ['230400', '640×360'], ['921600', '1280×720 (0.9 МП)'], ['2073600', '1920×1080 (2 МП)'], ['3686400', '2560×1440'], ['8294400', '3840×2160 (8 МП)'], ['custom', '…']],
@@ -175,7 +178,7 @@ export function renderPanel(root, jobs, ctx) {
   fillPreview(preview, job, ctx);
 
   const groups = new Map();
-  const visible = FIELDS.filter((f) => f.show(job));
+  const visible = FIELDS.filter((f) => f.show(job) && (job.kind !== 'join' || JOIN_FIELDS.has(f.id)));
   for (const f of visible) {
     const value = f.get(job.opts, job);
     const onSet = (v, final) => {
@@ -227,11 +230,19 @@ async function fillPreview(box, job, ctx) {
       box.append(el('div', { class: 'row' }, el('b', { text: t('preview') }), el('span', { id: 'previewSize', class: 'dim', text: `${res.width}×${res.height} · ${sizeText}` })), after, el('details', {}, el('summary', { text: t('before') }), before));
     } else if ((job.kind === 'audio' || job.kind === 'video') && (job.opts.chip || job.opts.remix)) {
       box.innerHTML = '';
-      const audio = el('audio', { controls: true, id: 'audioPreview' });
+      // готовый предпросмотр живёт в задании: панель перерисовывается (соседнее задание кончилось),
+      // а звук остаётся, пока не поменялись настройки
+      const key = JSON.stringify(job.opts);
+      const audio = el('audio', { controls: true, id: 'audioPreview', 'data-job': job.id });
+      if (job.view.audio?.key === key) audio.src = job.view.audio.url;
       const btn = el('button', { id: 'preview10', text: t('preview10'), onclick: async () => {
         btn.disabled = true; btn.textContent = t('working');
-        try { audio.src = await previewAudio(job, app.platform); audio.play().catch(() => {}); }
-        catch (e) { ctx.toast(t(`err.${e.message}`)); }
+        try {
+          const url = await previewAudio(job, app.platform);
+          job.view.audio = { url, key };
+          const cur = document.getElementById('audioPreview');
+          if (cur && cur.dataset.job === String(job.id)) { cur.src = url; cur.play().catch(() => {}); }
+        } catch (e) { ctx.toast(t(`err.${e.message}`)); }
         finally { btn.disabled = false; btn.textContent = t('preview10'); }
       } });
       box.append(el('div', { class: 'row' }, btn), audio);
@@ -279,6 +290,8 @@ async function fillPreview(box, job, ctx) {
       box.append(el('video', { src: job.view.url, controls: true, preload: 'metadata', id: 'videoPreview' }));
     } else box.innerHTML = '';
   } catch (e) {
+    // предпросмотр прерван отменой задания в том же потоке - просто нечего показать
+    if (e.message === 'canceled') { if (!stale()) box.innerHTML = ''; return; }
     if (!stale()) box.textContent = t(`err.${e.message}`) === `err.${e.message}` ? e.message : t(`err.${e.message}`);
   }
 }

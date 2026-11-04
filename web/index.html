@@ -3,16 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Только свои файлы: даже внедрённый в документ текст не загрузит чужой код (wasm - ffmpeg, manifold, 7-Zip) -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>FormatBox</title>
 <meta name="description" content="FormatBox: video, audio, images, documents, archives and 3D in one converter, offline in the browser">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="themes.css">
 <link rel="stylesheet" href="app.css">
 <script src="coi-sw.js"></script>
-<script>
-  // тема до первой отрисовки, чтобы не мигало
-  try { const th = localStorage.getItem('fb.theme'); if (th && th !== 'glass') document.documentElement.dataset.theme = th; } catch (e) { /* storage off */ }
-</script>
+<script src="theme-init.js"></script>
 </head>
 <body>
 <header class="top glass">

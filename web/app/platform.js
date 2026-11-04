@@ -1,6 +1,6 @@
 // Где работает окно: в браузере (ffmpeg.wasm, скачивание или выбранная папка) или в Electron
 // (настоящий ffmpeg, LibreOffice, запись рядом с файлом). Остальное окно одинаково.
-import { outputName } from '../core/names.js';
+import { outputName, archiveFolderName } from '../core/names.js';
 
 export async function makePlatform() {
   return window.formatbox ? desktopPlatform(window.formatbox) : webPlatform();
@@ -56,8 +56,8 @@ function webPlatform() {
       if (!dir) return null;
       const taken = new Set();
       for await (const name of dir.keys()) taken.add(name);
-      const folderName = outputName(job.name.replace(/\.(tar\.(gz|xz|bz2)|[^.]+)$/i, ''), '', taken, '').replace(/-formatbox$/, '');
-      const root = await dir.getDirectoryHandle(taken.has(folderName) ? `${folderName} (2)` : folderName, { create: true });
+      // новая папка по общему закону имён: существующая (в любом регистре) не открывается и не перетирается
+      const root = await dir.getDirectoryHandle(archiveFolderName(job.name, taken), { create: true });
       let files = 0;
       for (const e of entries) {
         const parts = e.path.split('/').filter(Boolean);
@@ -118,7 +118,7 @@ function desktopPlatform(fb) {
     async office(job, ctl) {
       return call('office', { input: job.src.path, from: job.ext, to: job.to, outDir }, ctl);
     },
-    async save(job, bytes, to, tag = '') { return fb.save({ bytes, source: job.src.path, to, outDir, tag }); },
+    async save(job, bytes, to, tag = '') { return fb.save({ bytes, source: job.src.path || null, name: job.name, to, outDir, tag }); },
     async extract(job, entries) { return fb.extract({ entries, source: job.src.path, outDir }); },
     show: (p) => fb.show(p),
     getOffice: () => fb.getOffice(),

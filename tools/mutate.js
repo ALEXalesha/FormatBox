@@ -13,7 +13,8 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = path.join(ROOT, 'tools', 'mutants');
 const MUTANTS = [];
 for (const f of fs.readdirSync(DIR).filter((n) => n.endsWith('.js')).sort()) {
-  MUTANTS.push(...(await import(pathToFileURL(path.join(DIR, f)).href)).default);
+  const mod = await import(pathToFileURL(path.join(DIR, f)).href);
+  MUTANTS.push(...mod.default, ...(mod.windowMutants || []));
 }
 
 const filter = process.argv[2] || '';

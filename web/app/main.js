@@ -4,7 +4,7 @@ import { makePlatform } from './platform.js';
 import { createQueue } from '../core/queue.js';
 import { detect, targetsFor, extOf } from '../core/formats.js';
 import { presetsFor, applyPreset } from '../core/presets.js';
-import { runJob, runJoin, runText3d, defaultTarget } from './run.js';
+import { runJob, runJoin, runText3d, defaultTarget, releaseJob } from './run.js';
 import { renderPanel } from './panel.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -50,8 +50,7 @@ export function toast(text, ms = 3200) {
 
 async function headOf(src) {
   if (src.file) return new Uint8Array(await src.file.slice(0, 4096).arrayBuffer());
-  const all = await app.platform.read({ src });
-  return all.subarray(0, 4096);
+  return window.formatbox.head(src.path, 4096);
 }
 
 export async function addFiles(list) {
@@ -154,6 +153,7 @@ function removeJob(id) {
   const i = app.jobs.findIndex((j) => j.id === id);
   if (i < 0) return;
   app.platform.revoke(app.jobs[i].result);
+  releaseJob(app.jobs[i]);
   app.jobs.splice(i, 1);
   app.selected.delete(id);
   renderAll();
@@ -187,7 +187,7 @@ export function renderAll() {
   const sel = selectedJobs();
   $('#panelNone').hidden = sel.length > 0;
   $('#panelBody').hidden = sel.length === 0;
-  if (sel.length) renderPanel($('#panelBody'), sel, { app, t, toast, rerender: renderAll, targetsFor: (j) => targetsFor(j.ext, { desktop: app.platform.desktop }) });
+  if (sel.length) renderPanel($('#panelBody'), sel, { app, t, toast, rerender: renderAll, targetsFor: (j) => targetsFor(j.ext, { desktop: app.platform.desktop }).filter((x) => x !== 'avif' || app.caps.avif) });
   const out = app.platform.outLabel();
   $('#outInfo').textContent = t(out.key, { name: out.name });
   $('#outPick').hidden = !app.platform.canPickFolder;
@@ -268,6 +268,8 @@ function wire() {
 
 async function boot() {
   app.platform = await makePlatform();
+  // AVIF в списке только там, где canvas умеет его кодировать (Chromium и Electron - нет)
+  app.caps = { avif: document.createElement('canvas').toDataURL('image/avif').startsWith('data:image/avif') };
   setLang(store.get('fb.lang', guessLang(navigator.languages)));
   $('#langSel').value = getLang();
   const th = store.get('fb.theme', 'glass');

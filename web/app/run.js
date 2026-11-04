@@ -41,13 +41,20 @@ async function pcmOf(job, platform, ctl, seconds) {
   return res.bytes;
 }
 
+// Разрядность исходного WAV: результат «как есть» сохраняет её, даже если звук шёл через ffmpeg в float
+async function sourceFormat(job, platform) {
+  if (job.ext !== 'wav') return null;
+  const { readWavHeader } = await import('../core/audio/wav.js');
+  try { const h = readWavHeader(await bytesOf(job, platform)); return { bits: h.bits, float: h.float }; } catch { return null; }
+}
+
 export async function runJob(job, ctl) {
   const { platform } = ctl;
   if (!job.to) throw new Error('no-target');
   if (job.kind === 'video' || job.kind === 'audio') {
     if (AUDIO.includes(job.to) && (job.opts.chip || job.opts.remix || (job.ext === 'wav' && job.to === 'wav'))) {
       const wav = await pcmOf(job, platform, { ...ctl, progress: (p) => ctl.progress(p * 0.3) });
-      const res = await callWorker('audio', { bytes: wav, opts: job.opts }, { signal: ctl.signal, progress: (p) => ctl.progress(0.3 + p * 0.5) });
+      const res = await callWorker('audio', { bytes: wav, opts: { ...job.opts, keep: await sourceFormat(job, platform) } }, { signal: ctl.signal, progress: (p) => ctl.progress(0.3 + p * 0.5) });
       if (job.to === 'wav') return platform.save(job, res.bytes, 'wav', job.opts.chip || (job.opts.remix ? 'chip' : ''));
       return platform.ffmpegBytes(job, res.bytes, 'wav', { ...ctl, tag: job.opts.chip || 'chip' });
     }
@@ -134,9 +141,18 @@ export async function inspectMesh(job, platform) {
   return callWorker('meshInfo', { bytes, ext: job.ext, opts: job.opts });
 }
 
+// список архива считается один раз на задание, а не при каждой перерисовке окна
 export async function listArchive(job, platform) {
-  const bytes = await bytesOf(job, platform);
-  return callWorker('archiveList', { bytes, name: job.name });
+  if (!job.view.list) job.view.list = callWorker('archiveList', { bytes: await bytesOf(job, platform), name: job.name }).catch((e) => { job.view.list = null; throw e; });
+  return job.view.list;
+}
+
+// Задание убрано из очереди: отпустить ссылки предпросмотров и байты файла
+export function releaseJob(job) {
+  for (const url of Object.values(urls.get(job) || {})) URL.revokeObjectURL(url);
+  urls.delete(job);
+  if (job.view?.url) URL.revokeObjectURL(job.view.url);
+  job.view = {};
 }
 
 export async function extractArchive(job, platform) {
@@ -149,5 +165,6 @@ export async function extractArchive(job, platform) {
   const saved = await platform.save(job, zip.bytes, 'zip', 'files');
   const a = document.createElement('a');
   a.href = saved.url; a.download = saved.name; a.click();
+  setTimeout(() => URL.revokeObjectURL(saved.url), 60000);
   return { name: saved.name, files: entries.filter((e) => !e.dir).length };
 }
