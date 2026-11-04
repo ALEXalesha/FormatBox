@@ -19,9 +19,20 @@ body {
 }
 button, select, input, textarea {
   font: inherit; color: var(--text);
-  background: var(--glass-bg-strong);
+  background-color: var(--glass-bg-strong);
   border: 1px solid var(--glass-border);
   border-radius: 9px; padding: 6px 11px; min-height: 32px;
+}
+/* Одна высота у полей и списков во всех браузерах: системный список в WebKit выше своего места
+   и налезал на соседний ряд. Стрелка своя, цвет - от темы. */
+select, input:not([type="checkbox"]):not([type="range"]) { height: 34px; line-height: 20px; padding-top: 6px; padding-bottom: 6px; }
+select {
+  -webkit-appearance: none; appearance: none; padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23f4f4f8' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 11px center; background-size: 12px 8px;
+}
+:root[data-theme="light"] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%231b2030' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 select option { color: #1b2030; background: #fff; }
 button { cursor: pointer; }
@@ -68,15 +79,16 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
 .job.failed .meta { color: var(--danger); }
 .job.done .state { color: var(--success); }
 
-.panel h3 { margin: 0 0 8px; font-size: 15px; overflow-wrap: anywhere; }
-.panel fieldset { border: 1px solid var(--glass-border); border-radius: 10px; margin: 0 0 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
+#panelBody { display: flex; flex-direction: column; gap: 8px; }
+.panel h3 { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+.panel fieldset { border: 1px solid var(--glass-border); border-radius: 10px; margin: 0; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
 .panel legend { color: var(--text-dim); padding: 0 4px; }
-.field { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.field { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; min-height: 34px; }
 .field > label { min-width: 150px; }
 .field.check > label { min-width: 0; display: flex; gap: 6px; align-items: center; }
 .field .hint { color: var(--text-dim); font-size: 12.5px; flex-basis: 100%; }
 .pair { display: inline-flex; gap: 6px; align-items: center; }
-.preview { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 10px; }
+.preview { display: flex; flex-direction: column; gap: 6px; }
 .preview:empty { display: none; }
 .preview img, .preview video, .preview canvas { max-height: 320px; object-fit: contain; align-self: flex-start; }
 .preview canvas, .preview img, .preview video { max-width: 100%; border-radius: 8px; background: repeating-conic-gradient(rgba(var(--ink) / 0.08) 0 25%, transparent 0 50%) 0 0 / 16px 16px; }

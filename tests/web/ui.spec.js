@@ -112,3 +112,41 @@ test('склейка двух видео и текст в 3D через меню
   });
   expect(Math.abs(d - 6)).toBeLessThan(0.3);
 });
+
+// Закон вёрстки: элементы панели не налезают друг на друга, между рядами полей - зазор не меньше 4 px
+async function overlaps(page) {
+  return page.evaluate(() => {
+    const boxes = [...document.querySelectorAll('#panelBody select, #panelBody input:not([type="checkbox"]), #panelBody button, #panelBody label')]
+      .filter((e) => e.offsetParent)
+      .map((e) => ({ id: e.id || e.textContent.trim().slice(0, 20), r: e.getBoundingClientRect() }));
+    const bad = [];
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i].r, b = boxes[j].r;
+        if (a.contains?.(b)) continue;
+        const ix = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const iy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        if (ix > 0 && iy > 0 && !(a.left <= b.left && a.right >= b.right && a.top <= b.top && a.bottom >= b.bottom) && !(b.left <= a.left && b.right >= a.right && b.top <= a.top && b.bottom >= a.bottom)) bad.push(`${boxes[i].id} × ${boxes[j].id}`);
+      }
+    }
+    const rows = [...document.querySelectorAll('#panelBody .field')].filter((e) => e.offsetParent).map((e) => e.getBoundingClientRect());
+    for (let i = 1; i < rows.length; i++) {
+      const gap = rows[i].top - rows[i - 1].bottom;
+      if (rows[i].top > rows[i - 1].top && gap < 4) bad.push(`ряды ${i - 1}/${i}: зазор ${gap.toFixed(1)} px`);
+    }
+    return bad;
+  });
+}
+
+for (const [w, theme] of [[1200, 'glass'], [800, 'light'], [380, 'warm']]) {
+  test(`поля панели не налезают друг на друга (${w} px, ${theme})`, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: 900 });
+    await openApp(page, { theme, lang: 'en' });
+    await addFiles(page, 'clip.mp4', 'photo.jpg', 'tone.wav', 'torus.stl');
+    for (let i = 0; i < 4; i++) {
+      await selectJob(page, i);
+      if (i === 2) await setOpt(page, 'to', 'wav');
+      expect(await overlaps(page), `файл ${i}`).toEqual([]);
+    }
+  });
+}
