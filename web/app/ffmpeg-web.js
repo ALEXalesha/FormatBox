@@ -8,6 +8,10 @@ let ff = null;
 let loading = null;
 let logTail = '';
 let onLine = null;
+let loads = 0;
+
+// сколько раз ffmpeg загружался: после отмены он убит и грузится заново
+export const ffmpegState = () => ({ loaded: Boolean(ff), loads });
 
 async function instance(onLoading) {
   if (ff) return ff;
@@ -22,6 +26,7 @@ async function instance(onLoading) {
       });
       await inst.load({ coreURL: `${BASE}ffmpeg-core/ffmpeg-core.js`, wasmURL: `${BASE}ffmpeg-core/ffmpeg-core.wasm` });
       ff = inst;
+      loads += 1;
       return inst;
     })().finally(() => { loading = null; });
   }
@@ -65,7 +70,8 @@ export async function ffmpegConvert({ bytes, ext, to, opts }, { signal, progress
   const inst = await instance(onLoading);
   const input = `in.${safeExt(ext)}`;
   const output = `out.${safeExt(to)}`;
-  await inst.writeFile(input, bytes);
+  // копия: ffmpeg.wasm забирает буфер в свой поток, а исходные байты нужны окну снова
+  await inst.writeFile(input, bytes.slice());
   try {
     const res = await runMediaJob({
       probe: () => probeIn(inst, input),
@@ -85,7 +91,7 @@ export async function ffmpegConvert({ bytes, ext, to, opts }, { signal, progress
 export async function ffmpegProbe({ bytes, ext }, { onLoading } = {}) {
   const inst = await instance(onLoading);
   const input = `probe.${safeExt(ext)}`;
-  await inst.writeFile(input, bytes);
+  await inst.writeFile(input, bytes.slice());
   try { return await probeIn(inst, input); } finally { await inst.deleteFile(input).catch(() => {}); }
 }
 
@@ -94,7 +100,7 @@ export async function ffmpegConcat(items, to, opts, { signal, progress, onLoadin
   const inputs = [];
   for (let i = 0; i < items.length; i++) {
     const name = `j${i}.${safeExt(items[i].ext)}`;
-    await inst.writeFile(name, items[i].bytes);
+    await inst.writeFile(name, items[i].bytes.slice());
     inputs.push(name);
   }
   const output = `joined.${safeExt(to)}`;

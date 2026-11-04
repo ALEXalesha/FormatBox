@@ -92,6 +92,8 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
 /* Светлая тема: стекло почти белое, текст тёмный - контраст выше */
 :root[data-theme="light"] .job { background: rgba(255, 255, 255, 0.6); }
 :root[data-theme="light"] { --success: #08694f; --danger: #b42318; }
+/* Тёплая: белый на охре давал контраст 2.8 - на основной кнопке тёмный текст (закон читаемости) */
+:root[data-theme="warm"] { --on-accent: #1d1610; }
 
 /* Узкое окно: одна колонка, кнопки переносятся */
 @media (max-width: 760px) {

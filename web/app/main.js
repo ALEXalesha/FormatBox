@@ -282,6 +282,7 @@ async function boot() {
     },
     onChange: (q) => {
       const job = q.input;
+      if (q.state === 'running' && job.state !== 'running') job.runs = (job.runs || 0) + 1;
       job.state = q.state === 'failed' ? 'failed' : q.state;
       if (q.state === 'done') { job.result = q.result; }
       if (q.state === 'failed') job.error = q.error;
