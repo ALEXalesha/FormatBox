@@ -12,6 +12,7 @@ LibreOffice и pandoc для больших файлов и лучших док�
 [English version](README.md)
 
 <img src="docs/screenshots/video-ru.png" width="49%" alt="Видео в очереди и панель настроек: размер в МБ, пиксели, размер кадра, обрезка, кусок, поворот"> <img src="docs/screenshots/image-light-ru.png" width="49%" alt="Светлая тема: фото с ползунком качества и предпросмотром с размером результата">
+<img src="docs/screenshots/mesh-ru.png" width="49%" alt="3D: превью тора, габариты, вес, длина нити и цена"> <img src="docs/screenshots/audio-warm-ru.png" width="49%" alt="Тема «Тёплая»: WAV в 8 бит 22 кГц со звуком NES и предпросмотром 10 с">
 
 ## Что умеет
 

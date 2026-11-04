@@ -165,6 +165,14 @@ export function renderPanel(root, jobs, ctx) {
   toSel.value = job.to || '';
   toSel.addEventListener('change', () => { for (const j of same) { j.to = toSel.value; j.preset = undefined; reset(j); } rerender(); });
   root.append(el('div', { class: 'field' }, el('label', { for: 'opt-to', text: t('opt.to') }), toSel));
+  // кнопка и предпросмотр сразу под форматом: видны без прокрутки
+  const actions = el('div', { class: 'row' });
+  const ready = same.filter((j) => j.to && !['running', 'waiting'].includes(j.state));
+  actions.append(el('button', { id: 'startSel', class: 'primary', text: t('start'), disabled: !ready.length || null, onclick: () => ctx.app.startSelected?.(ready) }));
+  root.append(actions);
+  const preview = el('div', { class: 'preview', id: 'preview' });
+  root.append(preview);
+  fillPreview(preview, job, ctx);
 
   const groups = new Map();
   const visible = FIELDS.filter((f) => f.show(job));
@@ -191,13 +199,6 @@ export function renderPanel(root, jobs, ctx) {
     root.append(fs);
   }
 
-  const actions = el('div', { class: 'row' });
-  const ready = same.filter((j) => j.to && !['running', 'waiting'].includes(j.state));
-  actions.append(el('button', { id: 'startSel', class: 'primary', text: t('start'), disabled: !ready.length || null, onclick: () => ctx.app.startSelected?.(ready) }));
-  root.append(actions);
-  const preview = el('div', { class: 'preview', id: 'preview' });
-  root.append(preview);
-  fillPreview(preview, job, ctx);
 }
 
 function reset(j) {
@@ -223,7 +224,7 @@ async function fillPreview(box, job, ctx) {
       const before = el('img', { src: res.beforeUrl, alt: 'before', id: 'imgBefore' });
       const after = el('img', { src: res.afterUrl, alt: 'after', id: 'imgAfter' });
       const sizeText = t('size.result', { size: humanSize(res.bytes), orig: humanSize(job.size) });
-      box.append(el('div', { class: 'row' }, el('b', { text: t('preview') }), el('span', { id: 'previewSize', class: 'dim', text: `${res.width}×${res.height} · ${sizeText}` })), after, el('details', {}, el('summary', { text: 'до / before' }), before));
+      box.append(el('div', { class: 'row' }, el('b', { text: t('preview') }), el('span', { id: 'previewSize', class: 'dim', text: `${res.width}×${res.height} · ${sizeText}` })), after, el('details', {}, el('summary', { text: t('before') }), before));
     } else if ((job.kind === 'audio' || job.kind === 'video') && (job.opts.chip || job.opts.remix)) {
       box.innerHTML = '';
       const audio = el('audio', { controls: true, id: 'audioPreview' });

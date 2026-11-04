@@ -46,7 +46,7 @@ const RU = {
   'err.size-not-for-gif': 'Для GIF задайте пиксели, а не МБ', 'err.no-target': 'Выберите, во что превратить', 'err.ffmpeg-failed': 'ffmpeg не справился с файлом', 'err.not-media': 'Это не видео и не звук',
   'err.too-big': 'Файл слишком большой для браузера - используйте версию для ПК',
   'ffmpeg.loading': 'Загружаю ffmpeg (31 МБ, один раз)…', 'working': 'Работаю…', 'saved': 'Сохранено: {name}',
-  'size.result': '{size} вместо {orig}', 'about': 'О программе',
+  'size.result': '{size} вместо {orig}', 'about': 'О программе', 'before': 'Как было',
   'credits': 'Код, тесты и документацию написал Claude (Anthropic) в Claude Code; идеи, проверка и решения - Алексея.',
 };
 
@@ -97,7 +97,7 @@ const EN = {
   'err.size-not-for-gif': 'For GIF set pixels, not MB', 'err.no-target': 'Choose what to convert to', 'err.ffmpeg-failed': 'ffmpeg could not process the file', 'err.not-media': 'Not a video or audio file',
   'err.too-big': 'The file is too big for the browser - use the desktop version',
   'ffmpeg.loading': 'Loading ffmpeg (31 MB, once)…', 'working': 'Working…', 'saved': 'Saved: {name}',
-  'size.result': '{size} instead of {orig}', 'about': 'About',
+  'size.result': '{size} instead of {orig}', 'about': 'About', 'before': 'Original',
   'credits': 'Code, tests and docs are written by Claude (Anthropic) in Claude Code; ideas, testing and decisions - Alexey.',
 };
 

@@ -12,6 +12,7 @@ Code, tests and docs are written by Claude (Anthropic) in Claude Code; ideas, te
 [Русская версия](README.ru.md)
 
 <img src="docs/screenshots/video-en.png" width="49%" alt="A video in the queue with the settings panel: size in MB, pixels, resize, crop, part, rotation"> <img src="docs/screenshots/image-light-en.png" width="49%" alt="Light theme: a photo with the quality slider and the preview with the result size">
+<img src="docs/screenshots/mesh-en.png" width="49%" alt="3D: torus preview with size, weight, filament length and cost"> <img src="docs/screenshots/audio-warm-en.png" width="49%" alt="Warm theme: WAV to 8 bit 22 kHz with the NES console sound and a 10-second preview">
 
 ## What it does
 

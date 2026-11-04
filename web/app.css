@@ -76,7 +76,9 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
 .field.check > label { min-width: 0; display: flex; gap: 6px; align-items: center; }
 .field .hint { color: var(--text-dim); font-size: 12.5px; flex-basis: 100%; }
 .pair { display: inline-flex; gap: 6px; align-items: center; }
-.preview { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.preview { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 10px; }
+.preview:empty { display: none; }
+.preview img, .preview video, .preview canvas { max-height: 320px; object-fit: contain; align-self: flex-start; }
 .preview canvas, .preview img, .preview video { max-width: 100%; border-radius: 8px; background: repeating-conic-gradient(rgba(var(--ink) / 0.08) 0 25%, transparent 0 50%) 0 0 / 16px 16px; }
 .compare { position: relative; display: inline-block; max-width: 100%; }
 .compare canvas { display: block; }
