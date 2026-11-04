@@ -51,9 +51,11 @@ export async function runSelected(page, timeout = 120000) {
   return page.evaluate(() => window.formatboxApp.jobs.map((j) => ({ name: j.name, state: j.state, error: j.error, result: j.result && { name: j.result.name, bytes: j.result.bytes } })));
 }
 
-export async function resultBytes(page, index) {
-  return page.evaluate(async (i) => {
+// limit - только первые байты: большой результат через протокол браузера идёт минутами
+export async function resultBytes(page, index, limit = Infinity) {
+  return page.evaluate(async ([i, n]) => {
     const url = window.formatboxApp.jobs[i].result.url;
-    return [...new Uint8Array(await (await fetch(url)).arrayBuffer())];
-  }, index);
+    const all = new Uint8Array(await (await fetch(url)).arrayBuffer());
+    return [...all.subarray(0, n ?? all.length)];
+  }, [index, Number.isFinite(limit) ? limit : null]);
 }

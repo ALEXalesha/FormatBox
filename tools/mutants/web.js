@@ -9,4 +9,6 @@ export default [
   { name: 'web: cancel does not stop ffmpeg', file: 'web/app/ffmpeg-web.js', from: "  const stop = () => killFfmpeg();", to: '  const stop = () => {};', app: conv, grep: 'отмена идущего' },
   { name: 'web: language not remembered', file: 'web/app/main.js', from: "store.set('fb.lang', e.target.value);", to: '', app, grep: 'переключение темы' },
   { name: 'web: object URLs never revoked', file: 'web/app/main.js', from: '  app.platform.revoke(app.jobs[i].result);', to: '', app, grep: '20 прогонов' },
+  { name: 'web: tools menu under the drop zone', file: 'web/app.css', from: '.top { position: relative; z-index: 30; }', to: '', app: 'tests/web/mesh.spec.js', grep: 'текст в 3D' },
+  { name: 'web: lithophane target not switched to STL', file: 'web/app/panel.js', from: "j.to = v ? (MESH_TARGETS.includes(j.to) ? j.to : 'stl')", to: "j.to = v ? j.to", app: 'tests/web/mesh.spec.js', grep: 'литофания' },
 ];
