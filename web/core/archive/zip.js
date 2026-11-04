@@ -109,8 +109,9 @@ export function peekGzip(b, want = 1024) {
   let got = 0;
   const g = new Gunzip();
   g.ondata = (chunk) => { out.push(chunk); got += chunk.length; };
+  // до 256 КБ входа: несжатый блок deflate (уровень 0) бывает до 64 КБ и отдаётся только целиком
   try {
-    for (let i = 0; i < Math.min(b.length, 65536) && got < want; i += 1024) g.push(b.subarray(i, i + 1024), false);
+    for (let i = 0; i < Math.min(b.length, 262144) && got < want; i += 4096) g.push(b.subarray(i, i + 4096), false);
   } catch {
     // битые данные - просто «не tar»
   }

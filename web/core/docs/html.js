@@ -112,6 +112,7 @@ function inlineRuns(node, f, out) {
     else if (n === 'a' && c.attrs.href) g.href = c.attrs.href;
     else if (BLOCK.has(n)) out.push(makeRun(' ', {}));
     inlineRuns(c, g, out);
+    if (BLOCK.has(n)) out.push(makeRun(' ', {}));
   }
   return out;
 }

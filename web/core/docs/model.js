@@ -30,7 +30,7 @@ export function normInl(inl) {
 
 // Схлопывание пробелов как в HTML и ODF: подряд идущие пробелы - один, по краям - ничего,
 // у переноса строки ('\n') пробелов нет. literal - куски, которые не трогаем (text:s в ODF).
-export function collapseRuns(runs) {
+export function collapseRuns(runs, { keepBreaks = false } = {}) {
   const out = [];
   let prev = '\n'; // начало абзаца - как сразу после переноса
   for (const r of runs) {
@@ -47,7 +47,7 @@ export function collapseRuns(runs) {
     prev = text[text.length - 1];
   }
   const last = out[out.length - 1];
-  if (last) last.text = last.text.replace(last.literal ? /\n+$/ : / +$/, '');
+  if (last && !(last.literal && keepBreaks)) last.text = last.text.replace(last.literal ? /\n+$/ : / +$/, '');
   return normInl(out);
 }
 

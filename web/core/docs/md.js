@@ -113,7 +113,7 @@ function parseLines(lines) {
     if (isTableStart(lines, i)) {
       const rows = [splitRow(line)];
       i += 2;
-      while (i < lines.length && !BLANK.test(lines[i]) && lines[i].includes('|')) rows.push(splitRow(lines[i++]));
+      while (i < lines.length && !BLANK.test(lines[i]) && !startsBlock(lines, i)) rows.push(splitRow(lines[i++]));
       out.push({ type: 'table', rows: rows.map((r) => r.map(parseInline)) });
       continue;
     }

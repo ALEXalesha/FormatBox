@@ -78,12 +78,12 @@ export async function pack(entries, format, { level = 6, signal, progress } = {}
   if (format === 'rar') throw new Error('rar: packing is not possible - the format is closed, there is no free packer');
   if (!archiveFormats[format]?.write) throw new Error(`archive: cannot pack ${format}`);
   checkAbort(signal);
-  const list = normalizeEntries(entries);
+  const items = normalizeEntries(entries);
   const opts = { level, signal, progress };
-  if (format === 'zip') return writeZip(list, opts);
-  if (format === 'tar') return writeTar(list, opts);
-  if (format === 'tar.gz') return writeGzip(writeTar(list, opts), level);
-  const out = await pack7z(list, opts);
+  if (format === 'zip') return writeZip(items, opts);
+  if (format === 'tar') return writeTar(items, opts);
+  if (format === 'tar.gz') return writeGzip(writeTar(items, opts), level);
+  const out = await pack7z(items, opts);
   progress?.(1);
   return out;
 }

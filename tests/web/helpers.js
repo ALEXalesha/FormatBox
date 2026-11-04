@@ -47,7 +47,7 @@ export async function runSelected(page, timeout = 120000) {
   await page.waitForFunction(([list, before]) => list.every((id, k) => {
     const j = window.formatboxApp.jobs.find((x) => x.id === id);
     return (j.runs || 0) > before[k] && !['waiting', 'running'].includes(j.state);
-  }), [ids, runs], { timeout });
+  }), [ids, runs], { timeout, polling: 100 });
   return page.evaluate(() => window.formatboxApp.jobs.map((j) => ({ name: j.name, state: j.state, error: j.error, result: j.result && { name: j.result.name, bytes: j.result.bytes } })));
 }
 
