@@ -44,9 +44,13 @@ function createWindow() {
   win = new BrowserWindow({
     ...state, minWidth: 380, minHeight: 520, show: !process.env.FORMATBOX_HIDDEN, backgroundColor: '#12101f', title: 'FormatBox',
     icon: path.join(WEB, 'icon.png'),
-    webPreferences: { preload: path.join(HERE, 'preload.cjs'), contextIsolation: true, sandbox: false },
+    skipTaskbar: Boolean(process.env.FORMATBOX_HIDDEN),
+    webPreferences: { preload: path.join(HERE, 'preload.cjs'), contextIsolation: true, sandbox: false, backgroundThrottling: !process.env.FORMATBOX_HIDDEN },
   });
-  if (state.maximized && !process.env.FORMATBOX_HIDDEN) win.maximize();
+  // окно тестов: показано, но полностью прозрачно и без панели задач - так кадры рисуются и
+  // requestAnimationFrame идёт (у скрытого окна он стоит), а человек ничего не видит
+  if (process.env.FORMATBOX_HIDDEN) { win.setOpacity(0); win.showInactive(); }
+  else if (state.maximized) win.maximize();
   win.setMenuBarVisibility(false);
   const remember = () => {
     if (!win || win.isDestroyed() || win.isMinimized()) return;
