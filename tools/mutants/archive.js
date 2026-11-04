@@ -11,7 +11,7 @@ export default [
   { name: 'archive: zip stored data shares memory with the input', file: 'web/core/archive/zip.js', from: 'method === 0 ? raw.slice() :', to: 'method === 0 ? raw :', test: LAWS },
   { name: 'archive: zip-slip - .. kept in paths', file: 'web/core/archive/entries.js', from: "if (p === '' || p === '.' || p === '..') continue;", to: "if (p === '' || p === '.') continue;", test: LAWS },
   { name: 'archive: zip-slip - backslashes kept', file: 'web/core/archive/entries.js', from: "String(raw).replace(/\\\\/g, '/').split('/')", to: "String(raw).split('/')", test: LAWS },
-  { name: 'archive: duplicate names overwrite each other', file: 'web/core/archive/entries.js', from: 'for (let n = 2; taken.has(path); n++) path = withSuffix(f.path, n);', to: '', test: LAWS },
+  { name: 'archive: duplicate names overwrite each other', file: 'web/core/archive/entries.js', from: 'for (let n = 2; taken.has(path.toLowerCase()); n++) path = withSuffix(f.path, n);', to: '', test: LAWS },
   { name: 'archive: 7z times not set before packing', file: 'web/core/archive/sevenzip.js', from: 'for (const e of [...entries].reverse()) z.FS.utime(', to: 'for (const e of []) z.FS.utime(', test: LAWS },
   { name: 'archive: 7z empty folders lost', file: 'web/core/archive/sevenzip.js', from: "out.push({ path, data: new Uint8Array(0), mtime, dir: true });\n        visit(path);", to: 'visit(path);', test: LAWS },
   { name: 'archive: tar.gz not recognized without a name', file: 'web/core/archive/index.js', from: "named(name, 'tar.gz') || isTar(peekGzip(bytes))", to: "named(name, 'tar.gz')", test: LAWS },
