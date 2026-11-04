@@ -16,6 +16,9 @@ function recorder(encodeFn) {
   return { calls, encode };
 }
 
+// Сравнение байтов без assert.deepEqual: при расхождении тот строит текст разницы на гигабайты
+const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+
 const jpegEncode = (img, q) => new Uint8Array(jpeg.encode({ data: img.data, width: img.width, height: img.height }, q).data);
 
 // Проверка главного закона по журналу попыток.
@@ -24,7 +27,7 @@ function checkResult(res, maxBytes, calls, minQ, maxQ) {
   const here = calls.filter((c) => c.w === res.width && c.h === res.height);
   const mine = here.find((c) => c.q === res.quality);
   assert.ok(mine, 'результат - одна из попыток');
-  assert.deepEqual(res.bytes, mine.bytes);
+  assert.ok(same(res.bytes, mine.bytes), 'байты результата - байты этой попытки');
   for (const c of here) if (c.bytes.length <= maxBytes) assert.ok(c.q <= res.quality, `качество ${c.q} влезло, но выбрано ${res.quality}`);
   const above = here.filter((c) => c.q > res.quality).map((c) => c.q);
   if (res.quality < maxQ) assert.ok(above.length > 0, 'выше никто не проверен');
@@ -50,7 +53,7 @@ test('закон: jpeg-js - результат не больше цели, ка�
       const last = calls.at(-1);
       assert.equal(Math.min(last.w, last.h), 1, 'отказ только когда уменьшать уже некуда');
     }
-    assert.deepEqual(Uint8Array.from(img.data), before);
+    assert.ok(same(Uint8Array.from(img.data), before), 'вход не изменился');
   }
 });
 
