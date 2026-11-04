@@ -73,7 +73,7 @@ function sample(row, i, depth) {
 
 const u16 = (d, i) => (d[i] << 8) | d[i + 1];
 
-export function decodePng(bytes) {
+export function decodePng(bytes, { signal } = {}) {
   if (!isPng(bytes)) throw new Error('not a PNG file');
   let ihdr = null, palette = null, trns = null;
   const idat = [];
@@ -107,6 +107,7 @@ export function decodePng(bytes) {
     const stride = Math.ceil((pw * channels * depth) / 8);
     let prev = new Uint8Array(stride);
     for (let y = 0; y < ph; y++) {
+      if (signal?.aborted) throw new Error('canceled');
       if (pos + 1 + stride > raw.length) throw new Error('PNG: image data truncated');
       const cur = raw.slice(pos + 1, pos + 1 + stride);
       unfilter(raw[pos], cur, prev, bpp);
@@ -178,7 +179,7 @@ function rowCost(buf, o, n) {
   return s;
 }
 
-export function encodePng(image, { level = 6, palette = true, filter = 'auto' } = {}) {
+export function encodePng(image, { level = 6, palette = true, filter = 'auto', signal } = {}) {
   const { width, height, data } = image;
   if (!(width >= 1 && height >= 1) || data.length !== width * height * 4) throw new Error('PNG: bad image');
   const { ctype, depth, colors } = analyze(data, palette);
@@ -189,6 +190,7 @@ export function encodePng(image, { level = 6, palette = true, filter = 'auto' } 
   const trial = new Uint8Array(stride + 1);
   let prev = new Uint8Array(stride);
   for (let y = 0; y < height; y++) {
+    if (signal?.aborted) throw new Error('canceled');
     const cur = new Uint8Array(stride);
     for (let x = 0; x < width; x++) {
       const i = (y * width + x) * 4;

@@ -111,10 +111,16 @@ async function encodeImage(img, to, opts, ctl) {
   const I = await Img();
   if (to === 'ico') return I.encodeIco(img, opts.icoSizes || I.ICO_SIZES);
   if (to === 'bmp') return I.encodeBmp(img);
-  const encodeAt = (im, q) => (to === 'png' ? Promise.resolve(I.encodePng(im)) : canvasEncode(im, MIME[to], q / 100));
+  // в JPEG нет прозрачности: canvas сделал бы её чёрной, кладём на белый
+  const encodeAt = (im, q) => (to === 'png' ? Promise.resolve(I.encodePng(im)) : canvasEncode(to === 'jpg' ? I.flatten(im) : im, MIME[to], q / 100));
   if (opts.maxBytes) {
-    const res = await I.encodeToSize(img, opts.maxBytes, (im, q) => encodeAt(im, q), { allowDownscale: true, signal: ctl.signal });
-    return res.bytes;
+    try {
+      const res = await I.encodeToSize(img, opts.maxBytes, (im, q) => encodeAt(im, q), { allowDownscale: true, signal: ctl.signal });
+      return res.bytes;
+    } catch (err) {
+      if (err.code === 'TOO_SMALL') throw new Error('size-unreachable');
+      throw err;
+    }
   }
   return encodeAt(img, opts.quality ?? 85);
 }
@@ -123,7 +129,7 @@ ops.image = async ({ bytes, ext, to, opts }, ctl) => {
   const I = await Img();
   // только убрать сведения, без перекодирования: сжатые данные остаются байт в байт
   if (to === ext && opts.stripMeta !== false && !hasEdits(opts) && ['jpg', 'png', 'webp'].includes(ext)) {
-    return { bytes: I.stripMetadata(bytes, { keepIcc: true }), width: 0, height: 0, lossless: true };
+    return { bytes: I.stripMetadata(bytes, { keepIcc: true }).bytes, width: 0, height: 0, lossless: true };
   }
   const img = await editImage(await decodeImage(bytes, ext), opts, ctl);
   ctl.progress(0.5);

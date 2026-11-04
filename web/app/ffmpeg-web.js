@@ -68,6 +68,7 @@ const safeExt = (ext) => String(ext || 'bin').replace(/[^a-z0-9.]/gi, '');
 // bytes -> { bytes: Uint8Array результата, info }
 export async function ffmpegConvert({ bytes, ext, to, opts }, { signal, progress, onLoading } = {}) {
   const inst = await instance(onLoading);
+  if (signal?.aborted) throw new Error('canceled');
   const input = `in.${safeExt(ext)}`;
   const output = `out.${safeExt(to)}`;
   // копия: ffmpeg.wasm забирает буфер в свой поток, а исходные байты нужны окну снова
